@@ -25,7 +25,7 @@ Le code n'a donc aucune prétention de perfection. Il peut contenir des bugs ou 
 Testé sur **CachyOS / Arch Linux**. Prérequis : Python 3, `numpy`, `xdg-utils`.
 
 ```bash
-git clone https://github.com/VOTRE_PSEUDO/search-globe.git
+git clone https://github.com/suzukooooo/search-globe.git
 cd search-globe
 ./install.sh
 ```
