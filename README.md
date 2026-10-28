@@ -2,6 +2,15 @@
 
 Un globe holographique 3D en pointillé dans ton terminal, avec les tendances du jour et une barre de recherche qui ouvre ton navigateur.
 
+<!-- Ajoute une capture ou un GIF ici : ![demo](docs/demo.gif) -->
+
+## À propos de ce projet
+
+Ce projet est **« vibecodé »** : je l'ai construit en dialoguant avec une IA (Claude) plutôt qu'en écrivant chaque ligne moi-même.
+Il est réalisé **à but éducatif** : c'est un terrain de jeu pour explorer le monde de la programmation, comprendre comment fonctionnent un rendu 3D, une interface terminal ou un appel réseau, et apprendre en bidouillant.
+
+Le code n'a donc aucune prétention de perfection. Il peut contenir des bugs ou des maladresses, et les retours, suggestions et contributions sont les bienvenus pour apprendre ensemble.
+
 ## Fonctionnalités
 
 - **Globe 3D** en points braille : continents, graticule, balayage radar, anneaux orbitaux et satellites
@@ -16,7 +25,7 @@ Un globe holographique 3D en pointillé dans ton terminal, avec les tendances du
 Testé sur **CachyOS / Arch Linux**. Prérequis : Python 3, `numpy`, `xdg-utils`.
 
 ```bash
-git clone https://github.com/suzukooooo/search-globe.git
+git clone https://github.com/VOTRE_PSEUDO/search-globe.git
 cd search-globe
 ./install.sh
 ```
