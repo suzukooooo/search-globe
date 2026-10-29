@@ -2,9 +2,9 @@
 
 Un globe holographique 3D en pointillé dans ton terminal, avec des tendances (du jour ou **liées à tes centres d'intérêt**) et une barre de recherche qui ouvre ton navigateur.
 
-![[search_globe 1.png]]
+![](../../../../search_globe%201.png)
 
-![[search_globe 2.png]]
+![](../../../../search_globe%202%201.png)
 
 ## À propos de ce projet
 
