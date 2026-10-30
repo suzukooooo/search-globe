@@ -31,16 +31,6 @@ Le code n'a donc aucune prétention de perfection. Il peut contenir des bugs ou 
 
 Testé sur **CachyOS / Arch Linux**. Prérequis : Python 3, `numpy`, `xdg-utils`.
 
-### Depuis l'AUR (une fois le paquet publié)
-
-```bash
-yay -S search-globe        # ou : paru -S search-globe
-```
-
-Le paquet installe `search-globe` et le raccourci `search`. Pour publier ou maintenir le paquet : [docs/AUR.md](docs/AUR.md).
-
-### Depuis les sources
-
 ```bash
 git clone https://github.com/suzukooooo/search-globe.git
 cd search-globe
