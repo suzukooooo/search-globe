@@ -29,7 +29,9 @@ import locale
 import math
 import os
 import re
+import shlex
 import shutil
+import signal
 import sqlite3
 import subprocess
 import sys
@@ -74,7 +76,8 @@ TILT = 0.40
 CT, ST = math.cos(TILT), math.sin(TILT)
 MAX_TRENDS = 8
 GLYPH = {"base": "▸", "news": "◆", "like": "◇", "genre": "◈"}
-WIKI_UA = "search-globe/2.1 (terminal globe; educational open-source project)"
+VERSION = "2.4.0"
+WIKI_UA = f"search-globe/{VERSION} (terminal globe; educational open-source project)"
 
 
 # --------------------------------------------------------------------------
@@ -646,6 +649,277 @@ _add("h_examples", "Exemples : /mode perso · /lang es · /exclude add banque",
      "Exemplos: /mode perso · /lang es · /exclude add banco")
 
 
+# ---- consentement, hors-ligne
+_add("consent_title", "🔒 Consentement", "🔒 Consent", "🔒 Consentimiento", "🔒 Einwilligung",
+     "🔒 Согласие", "🔒 Consenso", "🔒 Consentimento")
+_add("consent_intro",
+     "Pour trouver des actus liées à tes centres d'intérêt, search-globe enverrait UNIQUEMENT ces mots-clés à Google News et à Wikipédia :",
+     "To find news related to your interests, search-globe would send ONLY these keywords to Google News and Wikipedia:",
+     "Para buscar noticias relacionadas con tus intereses, search-globe enviaría ÚNICAMENTE estas palabras clave a Google News y Wikipedia:",
+     "Um passende News zu finden, würde search-globe NUR diese Stichwörter an Google News und Wikipedia senden:",
+     "Чтобы найти новости по вашим интересам, search-globe отправит ТОЛЬКО эти ключевые слова в Google News и Википедию:",
+     "Per trovare notizie legate ai tuoi interessi, search-globe invierebbe SOLO queste parole chiave a Google News e Wikipedia:",
+     "Para achar notícias ligadas aos seus interesses, o search-globe enviaria APENAS estas palavras-chave ao Google News e à Wikipédia:")
+_add("consent_none_kw",
+     "(aucun mot-clé détecté pour l'instant : ils seront déduits de ton historique)",
+     "(no keyword detected yet: they will be derived from your history)",
+     "(aún no hay palabras clave: se deducirán de tu historial)",
+     "(noch keine Stichwörter erkannt: sie werden aus deinem Verlauf abgeleitet)",
+     "(ключевых слов пока нет: они будут взяты из вашей истории)",
+     "(nessuna parola chiave rilevata: verranno dedotte dalla tua cronologia)",
+     "(nenhuma palavra-chave detectada: elas serão deduzidas do seu histórico)")
+_add("consent_notsent",
+     "Jamais envoyés : tes URL, ton historique complet, tes autres recherches. Comme pour tout site web, ces services voient ton adresse IP.",
+     "Never sent: your URLs, your full history, your other searches. As with any website, these services can see your IP address.",
+     "Nunca se envían: tus URL, tu historial completo, tus otras búsquedas. Como en cualquier sitio web, estos servicios ven tu dirección IP.",
+     "Nie gesendet: deine URLs, dein kompletter Verlauf, deine anderen Suchen. Wie bei jeder Website sehen diese Dienste deine IP-Adresse.",
+     "Никогда не отправляются: ваши URL, вся история, другие запросы. Как и любой сайт, эти сервисы видят ваш IP-адрес.",
+     "Mai inviati: i tuoi URL, la cronologia completa, le altre ricerche. Come ogni sito web, questi servizi vedono il tuo indirizzo IP.",
+     "Nunca enviados: suas URLs, seu histórico completo, suas outras buscas. Como em qualquer site, esses serviços veem seu endereço IP.")
+_add("consent_audit",
+     "Un journal local de chaque envoi est conservé : search consent log",
+     "A local log of every request is kept: search consent log",
+     "Se guarda un registro local de cada envío: search consent log",
+     "Jede Übermittlung wird lokal protokolliert: search consent log",
+     "Каждая отправка записывается в локальный журнал: search consent log",
+     "Ogni invio viene registrato in locale: search consent log",
+     "Cada envio fica registrado localmente: search consent log")
+_add("consent_revoke",
+     "Tu peux retirer ton accord à tout moment : search consent no  (ou /consent no dans le chat).",
+     "You can withdraw your consent at any time: search consent no  (or /consent no in the chat).",
+     "Puedes retirar tu consentimiento en cualquier momento: search consent no  (o /consent no en el chat).",
+     "Du kannst deine Einwilligung jederzeit widerrufen: search consent no  (oder /consent no im Chat).",
+     "Вы можете отозвать согласие в любой момент: search consent no  (или /consent no в чате).",
+     "Puoi revocare il consenso in qualsiasi momento: search consent no  (o /consent no nella chat).",
+     "Você pode retirar o consentimento a qualquer momento: search consent no  (ou /consent no no chat).")
+_add("consent_cmds",
+     "Pour autoriser : /consent yes · pour refuser : /consent no",
+     "To allow: /consent yes · to refuse: /consent no",
+     "Para permitir: /consent yes · para rechazar: /consent no",
+     "Erlauben: /consent yes · ablehnen: /consent no",
+     "Разрешить: /consent yes · отказать: /consent no",
+     "Per consentire: /consent yes · per rifiutare: /consent no",
+     "Para permitir: /consent yes · para recusar: /consent no")
+_add("consent_ask", "Autoriser cet envoi ? [o/N] ", "Allow this? [y/N] ",
+     "¿Permitir este envío? [s/N] ", "Diese Übermittlung erlauben? [j/N] ",
+     "Разрешить отправку? [д/Н] ", "Consentire questo invio? [s/N] ", "Permitir este envio? [s/N] ")
+_add("consent_granted", "✔ Envoi autorisé : les actus liées sont activées.",
+     "✔ Sending allowed: related news is now enabled.",
+     "✔ Envío permitido: las noticias relacionadas están activadas.",
+     "✔ Übermittlung erlaubt: passende News sind aktiviert.",
+     "✔ Отправка разрешена: связанные новости включены.",
+     "✔ Invio consentito: le notizie correlate sono attive.",
+     "✔ Envio permitido: as notícias relacionadas estão ativadas.")
+_add("consent_denied", "✔ Aucun envoi : les sujets détectés restent affichés en local, sans actus.",
+     "✔ Nothing is sent: detected topics stay local, without news.",
+     "✔ No se envía nada: los temas detectados se muestran solo en local, sin noticias.",
+     "✔ Nichts wird gesendet: erkannte Themen bleiben lokal, ohne News.",
+     "✔ Ничего не отправляется: найденные темы остаются локально, без новостей.",
+     "✔ Nessun invio: gli argomenti rilevati restano in locale, senza notizie.",
+     "✔ Nada é enviado: os temas detectados ficam locais, sem notícias.")
+_add("consent_state_yes", "Consentement : accordé le {d}", "Consent: granted on {d}",
+     "Consentimiento: concedido el {d}", "Einwilligung: erteilt am {d}", "Согласие: дано {d}",
+     "Consenso: concesso il {d}", "Consentimento: concedido em {d}")
+_add("consent_state_no", "Consentement : non accordé", "Consent: not granted",
+     "Consentimiento: no concedido", "Einwilligung: nicht erteilt", "Согласие: не дано",
+     "Consenso: non concesso", "Consentimento: não concedido")
+_add("offline_state", "Mode hors-ligne : {s}", "Offline mode: {s}", "Modo sin conexión: {s}",
+     "Offline-Modus: {s}", "Офлайн-режим: {s}", "Modalità offline: {s}", "Modo offline: {s}")
+_add("word_on", "activé", "on", "activado", "an", "включён", "attivo", "ativado")
+_add("word_off", "désactivé", "off", "desactivado", "aus", "выключен", "disattivo", "desativado")
+_add("consent_log_title", "Derniers envois (date · hôte · mot-clé) :",
+     "Latest requests (date · host · keyword):", "Últimos envíos (fecha · host · palabra clave):",
+     "Letzte Übermittlungen (Datum · Host · Stichwort):", "Последние отправки (дата · хост · слово):",
+     "Ultimi invii (data · host · parola chiave):", "Últimos envios (data · host · palavra-chave):")
+_add("consent_log_empty", "(aucun envoi enregistré)", "(no request logged)",
+     "(ningún envío registrado)", "(keine Übermittlung protokolliert)", "(отправок не было)",
+     "(nessun invio registrato)", "(nenhum envio registrado)")
+_add("consent_hint", "🔒 actus désactivées : /consent", "🔒 news off: /consent",
+     "🔒 noticias desactivadas: /consent", "🔒 News aus: /consent", "🔒 новости выкл.: /consent",
+     "🔒 notizie disattivate: /consent", "🔒 notícias desativadas: /consent")
+_add("ok_offline_on", "✔ Mode hors-ligne activé : plus aucune requête réseau.",
+     "✔ Offline mode on: no more network requests.",
+     "✔ Modo sin conexión activado: ninguna petición de red.",
+     "✔ Offline-Modus an: keine Netzwerkanfragen mehr.",
+     "✔ Офлайн-режим включён: сетевых запросов больше нет.",
+     "✔ Modalità offline attiva: nessuna richiesta di rete.",
+     "✔ Modo offline ativado: nenhuma requisição de rede.")
+_add("ok_offline_off", "✔ Mode hors-ligne désactivé.", "✔ Offline mode off.",
+     "✔ Modo sin conexión desactivado.", "✔ Offline-Modus aus.", "✔ Офлайн-режим выключен.",
+     "✔ Modalità offline disattivata.", "✔ Modo offline desativado.")
+_add("status_offline_mode", "mode hors-ligne : aucune requête réseau",
+     "offline mode: no network requests", "modo sin conexión: ninguna petición de red",
+     "Offline-Modus: keine Netzwerkanfragen", "офлайн-режим: сетевых запросов нет",
+     "modalità offline: nessuna richiesta di rete", "modo offline: nenhuma requisição de rede")
+_add("c_consent_prompt",
+     "🔒 Les actus liées ont besoin de ton accord. Tape /consent pour voir exactement ce qui serait envoyé.",
+     "🔒 Related news needs your consent. Type /consent to see exactly what would be sent.",
+     "🔒 Las noticias relacionadas necesitan tu consentimiento. Escribe /consent para ver exactamente qué se enviaría.",
+     "🔒 Für passende News brauchen wir deine Einwilligung. /consent zeigt genau, was gesendet würde.",
+     "🔒 Для связанных новостей нужно ваше согласие. Напишите /consent, чтобы увидеть, что именно будет отправлено.",
+     "🔒 Le notizie correlate richiedono il tuo consenso. Scrivi /consent per vedere esattamente cosa verrebbe inviato.",
+     "🔒 As notícias relacionadas precisam do seu consentimento. Digite /consent para ver exatamente o que seria enviado.")
+
+# ---- thèmes, économie
+_add("err_theme", "thème inconnu. Choisis parmi : {l}", "unknown theme. Choose from: {l}",
+     "tema desconocido. Elige entre: {l}", "unbekanntes Farbschema. Wähle aus: {l}",
+     "неизвестная тема. Выберите: {l}", "tema sconosciuto. Scegli tra: {l}",
+     "tema desconhecido. Escolha entre: {l}")
+_add("ok_theme", "✔ Thème : {n}", "✔ Theme: {n}", "✔ Tema: {n}", "✔ Farbschema: {n}",
+     "✔ Тема: {n}", "✔ Tema: {n}", "✔ Tema: {n}")
+_add("c_themes", "Thèmes :", "Themes:", "Temas:", "Farbschemata:", "Темы:", "Temi:", "Temas:")
+_add("err_perf", "choisis : on, off ou auto", "choose: on, off or auto", "elige: on, off o auto",
+     "wähle: on, off oder auto", "выберите: on, off или auto", "scegli: on, off o auto",
+     "escolha: on, off ou auto")
+_add("perf_auto", "auto (s'active si le terminal est lent)", "auto (turns on if the terminal is slow)",
+     "auto (se activa si el terminal es lento)", "auto (aktiviert sich bei langsamem Terminal)",
+     "auto (включается, если терминал медленный)", "auto (si attiva se il terminale è lento)",
+     "auto (ativa se o terminal for lento)")
+_add("ok_perf", "✔ Mode économie : {p}", "✔ Eco mode: {p}", "✔ Modo ahorro: {p}",
+     "✔ Sparmodus: {p}", "✔ Экономный режим: {p}", "✔ Modalità risparmio: {p}",
+     "✔ Modo econômico: {p}")
+_add("msg_eco_auto", "mode économie activé (terminal lent)", "eco mode enabled (slow terminal)",
+     "modo ahorro activado (terminal lento)", "Sparmodus aktiviert (langsames Terminal)",
+     "экономный режим включён (медленный терминал)", "modalità risparmio attivata (terminale lento)",
+     "modo econômico ativado (terminal lento)")
+
+# ---- widget, démarrage automatique
+_add("wid_env", "Session : {s} · Bureau : {d} · Méthode : {m}",
+     "Session: {s} · Desktop: {d} · Method: {m}", "Sesión: {s} · Escritorio: {d} · Método: {m}",
+     "Sitzung: {s} · Desktop: {d} · Methode: {m}", "Сессия: {s} · Рабочий стол: {d} · Метод: {m}",
+     "Sessione: {s} · Desktop: {d} · Metodo: {m}", "Sessão: {s} · Desktop: {d} · Método: {m}")
+_add("wid_cmd", "Commande : {c}", "Command: {c}", "Comando: {c}", "Befehl: {c}", "Команда: {c}",
+     "Comando: {c}", "Comando: {c}")
+_add("wid_started", "✔ Widget lancé. Pour l'arrêter : search widget stop",
+     "✔ Widget started. To stop it: search widget stop",
+     "✔ Widget iniciado. Para detenerlo: search widget stop",
+     "✔ Widget gestartet. Beenden mit: search widget stop",
+     "✔ Виджет запущен. Остановить: search widget stop",
+     "✔ Widget avviato. Per fermarlo: search widget stop",
+     "✔ Widget iniciado. Para parar: search widget stop")
+_add("wid_failed", "✘ Le widget s'est arrêté tout de suite (voir ci-dessus). Essaie : search widget --dry-run",
+     "✘ The widget exited immediately (see above). Try: search widget --dry-run",
+     "✘ El widget se cerró enseguida (ver arriba). Prueba: search widget --dry-run",
+     "✘ Das Widget wurde sofort beendet (siehe oben). Versuche: search widget --dry-run",
+     "✘ Виджет сразу завершился (см. выше). Попробуйте: search widget --dry-run",
+     "✘ Il widget si è chiuso subito (vedi sopra). Prova: search widget --dry-run",
+     "✘ O widget fechou logo (veja acima). Tente: search widget --dry-run")
+_add("wid_none",
+     "✘ Aucune méthode automatique pour ton environnement. Voir « Widget de bureau » dans le README (règles de fenêtre KDE, Hyprland, Sway, i3).",
+     "✘ No automatic method for your environment. See “Desktop widget” in the README (window rules for KDE, Hyprland, Sway, i3).",
+     "✘ No hay método automático para tu entorno. Consulta «Widget de escritorio» en el README (reglas de ventana para KDE, Hyprland, Sway, i3).",
+     "✘ Keine automatische Methode für deine Umgebung. Siehe „Desktop-Widget“ im README (Fensterregeln für KDE, Hyprland, Sway, i3).",
+     "✘ Для вашей среды нет автоматического способа. См. «Виджет рабочего стола» в README (правила окон для KDE, Hyprland, Sway, i3).",
+     "✘ Nessun metodo automatico per il tuo ambiente. Vedi «Widget desktop» nel README (regole finestra per KDE, Hyprland, Sway, i3).",
+     "✘ Nenhum método automático para o seu ambiente. Veja «Widget de desktop» no README (regras de janela para KDE, Hyprland, Sway, i3).")
+_add("wid_tools", "Outils conseillés pour X11 : {l}  (sudo pacman -S {l})",
+     "Recommended X11 tools: {l}  (sudo pacman -S {l})",
+     "Herramientas recomendadas para X11: {l}  (sudo pacman -S {l})",
+     "Empfohlene X11-Werkzeuge: {l}  (sudo pacman -S {l})",
+     "Рекомендуемые инструменты для X11: {l}  (sudo pacman -S {l})",
+     "Strumenti consigliati per X11: {l}  (sudo pacman -S {l})",
+     "Ferramentas recomendadas para X11: {l}  (sudo pacman -S {l})")
+_add("wid_stopped", "✔ {n} widget(s) arrêté(s).", "✔ {n} widget(s) stopped.",
+     "✔ {n} widget(s) detenido(s).", "✔ {n} Widget(s) beendet.", "✔ Остановлено виджетов: {n}.",
+     "✔ {n} widget fermato/i.", "✔ {n} widget(s) parado(s).")
+_add("wid_nothing", "Aucun widget en cours d'exécution.", "No widget is running.",
+     "Ningún widget en ejecución.", "Es läuft kein Widget.", "Виджет не запущен.",
+     "Nessun widget in esecuzione.", "Nenhum widget em execução.")
+_add("auto_on", "✔ Lancement automatique activé : {p}", "✔ Autostart enabled: {p}",
+     "✔ Inicio automático activado: {p}", "✔ Autostart aktiviert: {p}",
+     "✔ Автозапуск включён: {p}", "✔ Avvio automatico attivato: {p}",
+     "✔ Início automático ativado: {p}")
+_add("auto_off", "✔ Lancement automatique désactivé.", "✔ Autostart disabled.",
+     "✔ Inicio automático desactivado.", "✔ Autostart deaktiviert.", "✔ Автозапуск выключен.",
+     "✔ Avvio automatico disattivato.", "✔ Início automático desativado.")
+_add("auto_state", "Lancement automatique : {s}", "Autostart: {s}", "Inicio automático: {s}",
+     "Autostart: {s}", "Автозапуск: {s}", "Avvio automatico: {s}", "Início automático: {s}")
+_add("auto_manual",
+     "Ton bureau ({d}) ne lit pas les démarrages XDG. Ajoute cette ligne à sa configuration :\n  {l}",
+     "Your desktop ({d}) does not read XDG autostart entries. Add this line to its config:\n  {l}",
+     "Tu escritorio ({d}) no lee el inicio automático XDG. Añade esta línea a su configuración:\n  {l}",
+     "Dein Desktop ({d}) liest keine XDG-Autostarts. Füge diese Zeile zur Konfiguration hinzu:\n  {l}",
+     "Ваш рабочий стол ({d}) не читает автозапуск XDG. Добавьте эту строку в его конфигурацию:\n  {l}",
+     "Il tuo desktop ({d}) non legge l'avvio automatico XDG. Aggiungi questa riga alla sua configurazione:\n  {l}",
+     "Seu desktop ({d}) não lê o início automático XDG. Adicione esta linha à configuração dele:\n  {l}")
+
+# ---- aide du chat et de la ligne de commande (nouveautés)
+_add("h_theme", "couleurs : cyan, violet, matrix…", "colors: cyan, violet, matrix…",
+     "colores: cyan, violet, matrix…", "Farben: cyan, violet, matrix…",
+     "цвета: cyan, violet, matrix…", "colori: cyan, violet, matrix…", "cores: cyan, violet, matrix…")
+_add("h_eco", "mode économie (moins d'images/s)", "eco mode (fewer frames/s)",
+     "modo ahorro (menos fps)", "Sparmodus (weniger Bilder/s)", "экономный режим (меньше кадров)",
+     "modalità risparmio (meno fps)", "modo econômico (menos fps)")
+_add("h_consent", "envoi de mots-clés : yes, no, log", "keyword sending: yes, no, log",
+     "envío de palabras clave: yes, no, log", "Stichwort-Übermittlung: yes, no, log",
+     "отправка слов: yes, no, log", "invio parole chiave: yes, no, log",
+     "envio de palavras-chave: yes, no, log")
+_add("h_offline", "aucune requête réseau : on, off", "no network requests: on, off",
+     "sin peticiones de red: on, off", "keine Netzwerkanfragen: on, off",
+     "без сетевых запросов: on, off", "nessuna richiesta di rete: on, off",
+     "sem requisições de rede: on, off")
+_add("ap_theme", "change le thème de couleurs", "change the color theme", "cambia el tema de color",
+     "Farbschema ändern", "сменить цветовую тему", "cambia il tema di colori", "muda o tema de cores")
+_add("ap_eco", "mode économie : on, off ou auto", "eco mode: on, off or auto",
+     "modo ahorro: on, off o auto", "Sparmodus: on, off oder auto",
+     "экономный режим: on, off или auto", "modalità risparmio: on, off o auto",
+     "modo econômico: on, off ou auto")
+_add("ap_consent", "consentement d'envoi des mots-clés : status, yes, no, log",
+     "keyword-sending consent: status, yes, no, log",
+     "consentimiento de envío de palabras clave: status, yes, no, log",
+     "Einwilligung zur Stichwort-Übermittlung: status, yes, no, log",
+     "согласие на отправку слов: status, yes, no, log",
+     "consenso all'invio delle parole chiave: status, yes, no, log",
+     "consentimento de envio de palavras-chave: status, yes, no, log")
+_add("ap_offline", "mode hors-ligne : on ou off", "offline mode: on or off",
+     "modo sin conexión: on u off", "Offline-Modus: on oder off", "офлайн-режим: on или off",
+     "modalità offline: on o off", "modo offline: on ou off")
+_add("ap_widget", "globe en fond de bureau (start, stop)", "globe as a desktop widget (start, stop)",
+     "globo como widget de escritorio (start, stop)", "Globus als Desktop-Widget (start, stop)",
+     "глобус как виджет рабочего стола (start, stop)", "globo come widget del desktop (start, stop)",
+     "globo como widget de desktop (start, stop)")
+_add("ap_autostart", "lancement du widget à l'ouverture de session : on, off, status",
+     "start the widget at login: on, off, status",
+     "iniciar el widget al abrir sesión: on, off, status",
+     "Widget beim Login starten: on, off, status",
+     "запускать виджет при входе: on, off, status",
+     "avvia il widget al login: on, off, status",
+     "iniciar o widget no login: on, off, status")
+_add("ap_shellhook", "affiche la ligne à ajouter pour lancer le globe à l'ouverture du terminal",
+     "print the line to add to show the globe when a terminal opens",
+     "muestra la línea para mostrar el globo al abrir la terminal",
+     "zeigt die Zeile, um den Globus beim Terminalstart anzuzeigen",
+     "показать строку для запуска глобуса при открытии терминала",
+     "mostra la riga da aggiungere per avviare il globo all'apertura del terminale",
+     "mostra a linha para exibir o globo ao abrir o terminal")
+_add("ap_o_theme", "thème de couleurs, pour cette session", "color theme, this session only",
+     "tema de color, solo esta sesión", "Farbschema, nur diese Sitzung",
+     "цветовая тема, только на этот сеанс", "tema di colori, solo questa sessione",
+     "tema de cores, só nesta sessão")
+_add("ap_o_eco", "force le mode économie, pour cette session", "force eco mode, this session only",
+     "fuerza el modo ahorro, solo esta sesión", "Sparmodus erzwingen, nur diese Sitzung",
+     "принудительно экономный режим, только на этот сеанс",
+     "forza la modalità risparmio, solo questa sessione", "força o modo econômico, só nesta sessão")
+_add("ap_o_offline", "aucune requête réseau, pour cette session", "no network requests, this session only",
+     "sin peticiones de red, solo esta sesión", "keine Netzwerkanfragen, nur diese Sitzung",
+     "без сетевых запросов, только на этот сеанс", "nessuna richiesta di rete, solo questa sessione",
+     "sem requisições de rede, só nesta sessão")
+_add("ap_o_splash", "affiche le globe N secondes puis quitte (démarrage du terminal)",
+     "show the globe for N seconds then exit (terminal startup)",
+     "muestra el globo N segundos y sale (inicio de la terminal)",
+     "Globus N Sekunden zeigen, dann beenden (Terminalstart)",
+     "показать глобус N секунд и выйти (запуск терминала)",
+     "mostra il globo per N secondi poi esce (avvio del terminale)",
+     "mostra o globo por N segundos e sai (início do terminal)")
+_add("ap_o_widget", "mode widget : globe seul, sans saisie (utilisé par « search widget »)",
+     "widget mode: globe only, no input (used by “search widget”)",
+     "modo widget: solo el globo, sin entrada (usado por «search widget»)",
+     "Widget-Modus: nur Globus, keine Eingabe (von „search widget“ genutzt)",
+     "режим виджета: только глобус, без ввода (используется «search widget»)",
+     "modalità widget: solo globo, senza input (usata da «search widget»)",
+     "modo widget: só o globo, sem entrada (usado por «search widget»)")
+
+
 # --------------------------------------------------------------------------
 #  Carte du monde
 # --------------------------------------------------------------------------
@@ -754,6 +1028,12 @@ def build_world(cells):
     w.HA = np.random.uniform(0, math.tau, n)
     w.HD = np.random.exponential(4.0, n) + 1.0
     w.HP = np.random.uniform(0, math.tau, n)
+    e = World()                                  # version allégée (mode économie)
+    for name in ("X", "Y", "Z", "LAND", "LON", "APP"):
+        setattr(e, name, np.ascontiguousarray(getattr(w, name)[::2]))
+    for name in ("city", "HA", "HD", "HP"):
+        setattr(e, name, getattr(w, name))
+    w.eco = e
     return w
 
 
@@ -765,7 +1045,8 @@ BROWSER_NAMES = ("firefox", "librewolf", "zen", "floorp", "brave", "vivaldi",
                  "edge", "opera", "chromium", "chrome")
 DEFAULTS = {"mode": "base", "geo": "FR", "engine": "google", "browser": "auto",
             "history_days": 60, "max_trends": 8, "topics": 3, "lang": "auto",
-            "exclude": []}
+            "theme": "cyan", "perf": "auto", "consent": False, "consent_date": "",
+            "offline": False, "exclude": []}
 CONFIG_PATH = (Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
                / "search-globe" / "config.json")
 def mode_text(m):
@@ -789,6 +1070,13 @@ def sanitize(cfg):
             cfg[key] = DEFAULTS[key]
     lg = str(cfg.get("lang", "auto")).strip().lower()
     cfg["lang"] = lg if lg == "auto" or (len(lg) == 2 and lg.isalpha()) else "auto"
+    th = str(cfg.get("theme", "cyan")).strip().lower()
+    cfg["theme"] = th if th in THEMES else "cyan"
+    pf = str(cfg.get("perf", "auto")).strip().lower()
+    cfg["perf"] = pf if pf in ("on", "off", "auto") else "auto"
+    cfg["consent"] = cfg.get("consent") is True      # jamais de consentement « par défaut »
+    cfg["offline"] = cfg.get("offline") is True
+    cfg["consent_date"] = str(cfg.get("consent_date", ""))[:10] if cfg["consent"] else ""
     ex = cfg.get("exclude", [])
     cfg["exclude"] = (sorted({str(x).strip().lower() for x in ex if str(x).strip()})
                       if isinstance(ex, list) else [])
@@ -952,6 +1240,54 @@ BAD_CAT = ("wikipédia", "wikipedia", "article", "page ", "portail", "homonymie"
            "wikidata", "stub", "liste")
 
 
+STATE_PATH = (Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state"))
+              / "search-globe" / "sent.log")
+NO_WORDS = {"n", "no", "non", "nein", "нет", "nao", "não", "off", "0"}
+
+
+def log_send(host, keyword):
+    """Journal LOCAL de chaque mot-clé envoyé (consultable : search consent log)."""
+    try:
+        STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with STATE_PATH.open("a", encoding="utf-8") as f:
+            f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')}\t{host}\t{keyword}\n")
+        lines = STATE_PATH.read_text(encoding="utf-8").splitlines()
+        if len(lines) > 300:
+            STATE_PATH.write_text("\n".join(lines[-200:]) + "\n", encoding="utf-8")
+    except OSError:
+        pass
+
+
+def log_report(n=15):
+    try:
+        lines = STATE_PATH.read_text(encoding="utf-8").splitlines()[-n:]
+    except OSError:
+        lines = []
+    if not lines:
+        return tx("consent_log_empty")
+    return tx("consent_log_title") + "\n" + "\n".join("  " + ln.replace("\t", " · ") for ln in lines)
+
+
+def consent_screen(cfg):
+    """Texte du consentement : montre les mots-clés RÉELS qui seraient envoyés."""
+    try:
+        qs, _ = history_queries(cfg)
+        topics = pick_topics(qs, cfg["topics"])
+    except Exception:
+        topics = []
+    kw = "\n".join(f"   • {tp}" for tp in topics) if topics else "   " + tx("consent_none_kw")
+    state = (tx("consent_state_yes", d=cfg.get("consent_date") or "?") if cfg.get("consent")
+             else tx("consent_state_no"))
+    off = tx("offline_state", s=tx("word_on") if cfg.get("offline") else tx("word_off"))
+    return "\n".join([tx("consent_title"), "", tx("consent_intro"), kw, "", tx("consent_notsent"),
+                      tx("consent_audit"), tx("consent_revoke"), "", state, off])
+
+
+def set_consent(cfg, value):
+    cfg["consent"] = bool(value)
+    cfg["consent_date"] = time.strftime("%Y-%m-%d") if value else ""
+
+
 def is_blocked(q, exclude):
     return bool(BLOCK_RE.search(q)) or any(w in q for w in exclude)
 
@@ -1092,10 +1428,12 @@ def fetch_wiki(topic, lang):
 def build_topic_items(topic, cfg):
     """Un sujet -> file d'éléments : actu, titre similaire, genre, actu, similaires…"""
     geo, lang, disp = cfg["geo"], lang_for(cfg), topic.title()
+    log_send("news.google.com", topic)
     try:
         news = fetch_news(topic, geo, lang)
     except Exception:
         news = []
+    log_send(f"{lang}.wikipedia.org", topic)
     try:
         similar, cats = fetch_wiki(topic, lang)
     except Exception:
@@ -1151,7 +1489,16 @@ class Trends:
                     out.append(it)
         return out[: self.cfg["max_trends"]]
 
+    @property
+    def needs_consent(self):
+        return (self.mode in ("perso", "mix") and bool(self.topics)
+                and not self.cfg.get("consent") and not self.cfg.get("offline"))
+
     def header(self):
+        h = self._header0()
+        return h + " · " + tx("consent_hint") if self.needs_consent else h
+
+    def _header0(self):
         if self.mode == "perso":
             if self.perso:
                 return tx("header_perso", t=" · ".join(self.topics or self.sources))
@@ -1176,6 +1523,9 @@ class Trends:
             threading.Thread(target=self._run_perso, daemon=True).start()
 
     def _start_base(self, force=False):
+        if self.cfg.get("offline"):
+            self.status = "status_offline_mode"
+            return
         if not self.busy_b and (force or not self.base):
             self.busy_b = True
             threading.Thread(target=self._run_base, daemon=True).start()
@@ -1189,6 +1539,10 @@ class Trends:
                 self.perso, self.topics = [], []
                 self.status = "status_nohist"
                 self._start_base()               # repli : tendances du jour
+            elif self.cfg.get("offline") or not self.cfg.get("consent"):
+                # rien n'est envoyé : on n'affiche que les sujets détectés, en local
+                self.perso = [(tp.title(), tx("d_hist"), "like", None) for tp in topics]
+                self.topics = topics
             else:
                 with ThreadPoolExecutor(max_workers=min(6, len(topics))) as ex:
                     queues = list(ex.map(lambda tp: build_topic_items(tp, self.cfg), topics))
@@ -1274,17 +1628,30 @@ def put(win, y, x, s, attr=0):
         pass
 
 
-def init_colors():
+THEMES = {
+    "cyan":   {1: 24, 2: 27, 3: 33, 4: 39, 5: 51, 6: 195, 7: 244, 8: 123},
+    "violet": {1: 54, 2: 55, 3: 93, 4: 135, 5: 177, 6: 225, 7: 244, 8: 183},
+    "matrix": {1: 22, 2: 28, 3: 34, 4: 40, 5: 46, 6: 157, 7: 243, 8: 120},
+    "amber":  {1: 94, 2: 130, 3: 172, 4: 214, 5: 220, 6: 230, 7: 244, 8: 222},
+    "rose":   {1: 53, 2: 89, 3: 125, 4: 161, 5: 205, 6: 224, 7: 244, 8: 218},
+    "mono":   {1: 236, 2: 240, 3: 245, 4: 250, 5: 255, 6: 231, 7: 244, 8: 252},
+}
+THEME_BASIC = {"cyan": "COLOR_CYAN", "violet": "COLOR_MAGENTA", "matrix": "COLOR_GREEN",
+               "amber": "COLOR_YELLOW", "rose": "COLOR_RED", "mono": "COLOR_WHITE"}
+
+
+def init_colors(theme="cyan"):
     curses.start_color()
     try:
         curses.use_default_colors()
     except curses.error:
         pass
     if curses.COLORS >= 256:
-        spec = {1: 24, 2: 27, 3: 33, 4: 39, 5: 51, 6: 195, 7: 244, 8: 123}
-    else:
-        B, C, W = curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE
-        spec = {1: B, 2: B, 3: B, 4: C, 5: C, 6: W, 7: W, 8: C}
+        spec = dict(THEMES.get(theme, THEMES["cyan"]))
+    else:                                       # terminaux 8 couleurs : une teinte par thème
+        main = getattr(curses, THEME_BASIC.get(theme, "COLOR_CYAN"))
+        white = curses.COLOR_WHITE
+        spec = {1: main, 2: main, 3: main, 4: main, 5: main, 6: white, 7: white, 8: main}
     for n, c in spec.items():
         curses.init_pair(n, c, -1)
     A = {0: 0}
@@ -1383,10 +1750,14 @@ def circle(cx, cy, R, step=1.0):
 #  Application
 # --------------------------------------------------------------------------
 class App:
-    def __init__(self, world, trends, cfg):
+    def __init__(self, world, trends, cfg, widget=False, splash=0):
         self.w = world
         self.trends = trends
         self.cfg = cfg
+        self.widget, self.splash = widget, float(splash or 0)
+        self.minimal = bool(widget or splash)        # globe seul : pas de barre, ni HUD, ni chat
+        self.ft, self.slow = None, 0
+        self.eco = False
         self.geo = cfg["geo"]
         self.home_url, self.query_url = ENGINES[cfg["engine"]]
         self.zoom = 1.0
@@ -1398,6 +1769,7 @@ class App:
         self.chat_hist, self.hist_i = [], 0
         self.want_quit = False
         self.gear = None
+        self.eco = self.want_eco()
         self.A = {i: 0 for i in range(10)}
         self.angle = 0.9
         self.spin = 0.30
@@ -1427,9 +1799,12 @@ class App:
     # ================= mode paramètres (chat) =================
     CHAT_COMMANDS = ("/help", "/mode", "/lang", "/geo", "/engine", "/browser", "/topics",
                      "/days", "/max", "/exclude", "/history", "/preview", "/config",
-                     "/refresh", "/clear", "/reset", "/exit", "/quit")
+                     "/refresh", "/clear", "/reset", "/theme", "/eco", "/consent", "/offline",
+                     "/exit", "/quit")
 
     def chat_open(self, now, prefill=""):
+        if self.minimal:
+            return
         if not self.chat:
             self.chat = True
             if not self.chat_log and not self.chat_pending:
@@ -1455,6 +1830,10 @@ class App:
                 save_config(self.cfg)
             except OSError:
                 pass
+        if key == "theme":
+            self.A = init_colors(self.cfg["theme"])
+        if key == "perf":
+            self.eco = self.want_eco()
         tr = self.trends
         if key == "geo":
             tr.geo = self.geo = self.cfg["geo"]
@@ -1462,7 +1841,8 @@ class App:
             self.home_url, self.query_url = ENGINES[self.cfg["engine"]]
         if key == "mode":
             tr.mode = self.cfg["mode"]
-        if key in ("geo", "lang", "browser", "topics", "history_days", "exclude", "mode"):
+        if key in ("geo", "lang", "browser", "topics", "history_days", "exclude", "mode",
+                   "consent", "offline"):
             tr.perso_loaded = False
             self.vis = [0.0] * MAX_TRENDS
             tr.refresh(force=True)
@@ -1474,8 +1854,9 @@ class App:
                 ("/topics 3", "h_topics"), ("/days 60", "h_days"), ("/max 8", "h_max"),
                 ("/exclude add|remove|list|clear", "h_exclude"), ("/history", "h_history"),
                 ("/preview", "h_preview"), ("/config", "h_config"), ("/refresh", "h_refresh"),
-                ("/clear", "h_clear"), ("/reset", "h_reset"), ("/exit", "h_exit"),
-                ("/quit", "h_quit"))
+                ("/clear", "h_clear"), ("/reset", "h_reset"), ("/theme cyan", "h_theme"),
+                ("/eco on|off|auto", "h_eco"), ("/consent yes|no|log", "h_consent"),
+                ("/offline on|off", "h_offline"), ("/exit", "h_exit"), ("/quit", "h_quit"))
         out = [tx("h_title"), ""] + [f"{u} — {tx(k)}" for u, k in spec]
         return "\n".join(out + ["", tx("h_examples")])
 
@@ -1496,7 +1877,9 @@ class App:
             except ValueError as e:
                 return f"✘ {e}"
             self.set_mode(m, now)
-            return tx("ok_mode", m=mode_text(m))
+            note = ("\n" + tx("c_consent_prompt")
+                    if m != "base" and not cfg["consent"] and not cfg["offline"] else "")
+            return tx("ok_mode", m=mode_text(m)) + note
         if cmd == "lang":
             if not a1:
                 names = " · ".join(f"{c} {LANG_NAMES[c]}" for c in LANGS)
@@ -1564,6 +1947,54 @@ class App:
             for key in ("geo", "engine", "mode"):
                 self.after_setting(key, now, save=False)
             return tx("c_reset_done")
+        if cmd == "theme":
+            if not a1:
+                return tx("c_themes") + "\n" + " · ".join(THEMES) + f"\n→ {cfg['theme']}"
+            try:
+                v = apply_setting(cfg, "theme", a1)
+            except ValueError as e:
+                return f"✘ {e}"
+            self.after_setting("theme", now)
+            return tx("ok_theme", n=v)
+        if cmd in ("eco", "perf"):
+            if a1:
+                try:
+                    v = apply_setting(cfg, "perf", a1)
+                except ValueError as e:
+                    return f"✘ {e}"
+                self.after_setting("perf", now)
+            return tx("ok_perf", p=perf_text(cfg["perf"]))
+        if cmd == "offline":
+            arg = a1.lower()
+            if arg == "on" or arg in YES_WORDS:
+                cfg["offline"] = True
+            elif arg in NO_WORDS:
+                cfg["offline"] = False
+            else:
+                return tx("offline_state", s=tx("word_on") if cfg["offline"] else tx("word_off"))
+            self.after_setting("offline", now)
+            return tx("ok_offline_on") if cfg["offline"] else tx("ok_offline_off")
+        if cmd == "consent":
+            arg = a1.lower()
+            if arg in YES_WORDS:
+                set_consent(cfg, True)
+                self.after_setting("consent", now)
+                return tx("consent_granted")
+            if arg in NO_WORDS:
+                set_consent(cfg, False)
+                self.after_setting("consent", now)
+                return tx("consent_denied")
+            if arg == "log":
+                return log_report()
+
+            def work():
+                try:
+                    txt = consent_screen(cfg) + "\n\n" + tx("consent_cmds")
+                except Exception as e:
+                    txt = f"✘ {e}"
+                self.chat_pending.append((time.monotonic(), txt))
+            threading.Thread(target=work, daemon=True).start()
+            return tx("c_history_wait")
         if cmd in ("exit", "close", "back"):
             self.chat_close(now)
             return None
@@ -1659,7 +2090,7 @@ class App:
         last = len(self.chat_log) - 1
         for i, m in enumerate(self.chat_log):
             shown = None
-            if m["who"] == "bot" and i == last:                 # effet « machine à écrire »
+            if m["who"] == "bot" and i == last and not self.eco:   # effet « machine à écrire »
                 n = len(m["text"])
                 c = int((now - m["t0"]) * max(260.0, n / 0.9))
                 if c < n:
@@ -1747,6 +2178,23 @@ class App:
         else:
             self.search(target, now)
 
+    def want_eco(self):
+        p = self.cfg.get("perf", "auto")
+        if p == "on":
+            return True
+        if p == "off":
+            return False
+        return self.widget or bool(os.environ.get("SSH_CONNECTION"))
+
+    def watch_perf(self, spent, now):
+        """Mode auto : passe en économie si les images mettent trop longtemps à se dessiner."""
+        self.ft = spent if self.ft is None else self.ft * 0.9 + spent * 0.1
+        if self.cfg.get("perf", "auto") == "auto" and not self.eco:
+            self.slow = self.slow + 1 if self.ft > 0.045 else 0
+            if self.slow > 45:
+                self.eco = True
+                self.msg, self.msg_until = tx("msg_eco_auto"), now + 4
+
     def cycle_mode(self, now):
         m = MODES[(MODES.index(self.trends.mode) + 1) % len(MODES)]
         self.set_mode(m, now)
@@ -1763,6 +2211,9 @@ class App:
         self.pulse_t0 = now
 
     def on_click(self, mx, my, now):
+        if self.splash:
+            self.want_quit = True
+            return
         if self.chat_p > 0.5:
             for x0, x1, y, cmd in self.chat_hits:
                 if y == my and x0 <= mx < x1:
@@ -1795,6 +2246,10 @@ class App:
             except curses.error:
                 return False
             scr.timeout(0)
+            if self.minimal and key not in (curses.KEY_MOUSE, curses.KEY_RESIZE):
+                if self.splash:
+                    return True                      # n'importe quelle touche ferme l'écran d'accueil
+                continue
             if key == curses.KEY_RESIZE:
                 curses.update_lines_cols()
             elif key == curses.KEY_MOUSE:
@@ -1861,10 +2316,13 @@ class App:
     def frame(self, scr, now, t, dt):
         A = self.A
         rows, cols = scr.getmaxyx()
-        ch, cw = rows - 4, cols
+        eco = self.eco
+        if eco:
+            t += 10.0                                     # pas d'intro ni d'effets progressifs
+        ch, cw = rows - (0 if self.minimal else 4), cols
         scr.erase()
         tgt_p = 1.0 if self.chat else 0.0                 # animation du panneau de chat
-        self.chat_p += (tgt_p - self.chat_p) * min(1.0, dt * 9)
+        self.chat_p += (tgt_p - self.chat_p) * (1.0 if eco else min(1.0, dt * 9))
         if abs(tgt_p - self.chat_p) < 0.004:
             self.chat_p = tgt_p
         pw = min(64, max(40, int(cols * 0.44))) if cols >= 100 else cols
@@ -1879,7 +2337,7 @@ class App:
             self.geom = None
             return
         r0 = max(r0, 2.0)
-        w = self.w
+        w = self.w.eco if eco else self.w
 
         # --- lancement / impulsions ---
         s = ease_out(min(1.0, t / 1.8))
@@ -1899,10 +2357,11 @@ class App:
                     if c0_ <= mcx < c1_ and row_ <= mcy <= row_ + 1:
                         hov_prev = k_
         ztarget = 1.10 if hover_globe else (1.06 if hov_prev >= 0 else 1.0)
-        self.zoom += (ztarget - self.zoom) * min(1.0, dt * 9)
+        self.zoom += (ztarget - self.zoom) * (1.0 if eco else min(1.0, dt * 9))
         r = r_base * self.zoom                       # rayon affiché (avec zoom)
 
-        self.spin += ((0.10 if hover_globe else 0.30) - self.spin) * min(1.0, dt * 4)
+        base_spin = 0.18 if eco else 0.30
+        self.spin += ((0.10 if hover_globe else base_spin) - self.spin) * min(1.0, dt * 4)
         self.boost *= math.exp(-dt * 1.6)
         self.angle += (self.spin + self.boost + 7 * (1 - s) ** 2) * dt
         a = self.angle
@@ -1922,7 +2381,7 @@ class App:
         land = w.LAND[m]
         lv = np.where(land, np.where(zz < 0.3, 5, np.where(zz < 0.7, 4, 3)),
                       np.where(zz < 0.35, 2, 1)).astype(np.uint8)
-        if s > 0.98:                                   # balayage radar
+        if s > 0.98 and not eco:                       # balayage radar
             scan = (-t * 55.0) % 360 - 180
             d = (w.LON[m] - scan + 180) % 360 - 180
             lv[np.abs(d) < 1.6] = 6
@@ -1952,13 +2411,14 @@ class App:
             plot(lev, xs, ys, lvl)
 
         # --- particules (halo) ---
-        rad = r + 3 + w.HD * (1 + 0.25 * np.sin(t * 1.3 + w.HP)) * (1 + 10 * (1 - s))
-        kp = np.random.random(rad.size) < 0.55
-        plot(lev, np.rint(cx + rad[kp] * np.cos(w.HA[kp])).astype(int),
-             np.rint(cy - rad[kp] * np.sin(w.HA[kp])).astype(int), 2)
+        if not eco:
+            rad = r + 3 + w.HD * (1 + 0.25 * np.sin(t * 1.3 + w.HP)) * (1 + 10 * (1 - s))
+            kp = np.random.random(rad.size) < 0.55
+            plot(lev, np.rint(cx + rad[kp] * np.cos(w.HA[kp])).astype(int),
+                 np.rint(cy - rad[kp] * np.sin(w.HA[kp])).astype(int), 2)
 
         # --- anneaux orbitaux + satellites ---
-        if s > 0.6:
+        if s > 0.6 and not eco:
             th = np.linspace(0, math.tau, 260, endpoint=False)
             for idx, (f, theta, spd) in enumerate(((1.30, 0.35, 0.25), (1.48, -0.6, -0.18))):
                 phi = t * spd
@@ -2064,7 +2524,7 @@ class App:
 
         # --- ondes de choc (clics) ---
         alive = []
-        for rp in self.ripples:
+        for rp in ([] if eco else self.ripples):
             ag = now - rp[2]
             if ag > 1.1:
                 continue
@@ -2118,7 +2578,7 @@ class App:
 
         # --- HUD ---
         self.gear = None
-        if left_cols >= 30:
+        if left_cols >= 30 and not self.minimal:
             title = "◢ SEARCH // GLOBE"
             put(scr, 0, 1, title[: int(t * 24)], A[5])
             if items:
@@ -2142,7 +2602,7 @@ class App:
         rev = ease_out(max(0.0, min(1.0, (t - 1.0) / 0.8)))
         wv = int(bw * rev)
         cursor = None
-        if wv >= 6 and self.chat_p == 0:
+        if wv >= 6 and self.chat_p == 0 and not self.minimal:
             x0 = bx + (bw - wv) // 2
             top = list("╭" + "─" * (wv - 2) + "╮")
             p = int((t * 28) % wv)
@@ -2189,7 +2649,8 @@ class App:
         if now < self.msg_until:
             hint, hattr = self.msg, A[6]
         hw = cols if left_cols < 40 else left_cols
-        put(scr, rows - 1, max(0, (hw - cwidth(hint)) // 2), fit(hint, hw - 1), hattr)
+        if not self.minimal:
+            put(scr, rows - 1, max(0, (hw - cwidth(hint)) // 2), fit(hint, hw - 1), hattr)
 
         if self.chat_p > 0.01:
             cursor = self.draw_chat(scr, now, left_cols, cols, rows)
@@ -2200,25 +2661,29 @@ class App:
                 pass
 
     def run(self, scr):
-        curses.curs_set(1)
+        curses.curs_set(0 if self.minimal else 1)
         curses.mousemask(curses.ALL_MOUSE_EVENTS | curses.REPORT_MOUSE_POSITION)
         curses.mouseinterval(0)
         mouse_motion(True)                            # active le survol
         scr.keypad(True)
-        self.A = init_colors()
+        self.A = init_colors(self.cfg.get("theme", "cyan"))
         self.t0 = self.last = time.monotonic()
         self.trends.refresh()
         try:
             while True:
                 fs = time.monotonic()
-                t, dt = fs - self.t0, min(0.1, fs - self.last)
+                t, dt = fs - self.t0, min(0.2 if self.eco else 0.1, fs - self.last)
                 self.last = fs
                 if time.time() - self.trends.last_refresh > 600:
                     self.trends.refresh(force=True)
                 self.frame(scr, fs, t, dt)
                 scr.refresh()
-                wait = max(1, int((0.033 - (time.monotonic() - fs)) * 1000))
-                if self.handle_input(scr, time.monotonic(), wait):
+                spent = time.monotonic() - fs
+                self.watch_perf(spent, fs)
+                wait = max(1, int(((0.083 if self.eco else 0.033) - spent) * 1000))
+                if self.handle_input(scr, time.monotonic(), wait) or self.want_quit:
+                    return
+                if self.splash and fs - self.t0 > self.splash:
                     return
         finally:
             mouse_motion(False)
@@ -2244,6 +2709,19 @@ def norm_mode(v):
     return v
 
 
+def norm_perf(v):
+    v = str(v).strip().lower()
+    v = {"eco": "on", "1": "on", "true": "on", "oui": "on", "normal": "off", "0": "off",
+         "false": "off", "non": "off"}.get(v, v)
+    if v not in ("on", "off", "auto"):
+        raise argparse.ArgumentTypeError(tx("err_perf"))
+    return v
+
+
+def perf_text(p):
+    return {"on": tx("word_on"), "off": tx("word_off")}.get(p) or tx("perf_auto")
+
+
 def norm_lang(v):
     v = str(v).strip().lower()
     return LANG_ALIASES.get(v, v)
@@ -2267,6 +2745,12 @@ def apply_setting(cfg, key, raw):
             v = v.lower()
             if v != "auto" and v not in BROWSER_NAMES:
                 raise ValueError("auto, " + ", ".join(BROWSER_NAMES))
+        elif key == "theme":
+            v = v.lower()
+            if v not in THEMES:
+                raise ValueError(tx("err_theme", l=", ".join(THEMES)))
+        elif key == "perf":
+            v = norm_perf(v)
         elif key == "lang":
             v = norm_lang(v)
             if v != "auto" and not (len(v) == 2 and v.isalpha()):
@@ -2354,6 +2838,10 @@ def wizard(cfg):
             print(tx("w_hist_ok", n=", ".join(sorted({n for n, _ in files}))))
         else:
             print(tx("w_hist_no"))
+        print("\n" + consent_screen(cfg) + "\n")          # consentement explicite (refus par défaut)
+        ok = ask(tx("consent_ask"), "n").lower() in YES_WORDS
+        set_consent(cfg, ok)
+        print(tx("consent_granted") if ok else tx("consent_denied"))
     geo = ask("\n" + tx("w_geo", g=cfg["geo"]), cfg["geo"]).upper()
     if len(geo) == 2 and geo.isalpha():
         cfg["geo"] = geo
@@ -2361,6 +2849,167 @@ def wizard(cfg):
     print("\n" + tx("w_saved", p=CONFIG_PATH))
     print("  " + tx("w_later").replace("\n", "\n  ") + "\n")
     return cfg
+
+
+# --------------------------------------------------------------------------
+#  Widget de bureau (façon glava), démarrage automatique, écran d'accueil du terminal
+# --------------------------------------------------------------------------
+WIDGET_CLASS = "search-globe-widget"
+WIDGET_LOG = STATE_PATH.parent / "widget.log"
+AUTOSTART = (Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+             / "autostart" / "search-globe-widget.desktop")
+
+
+def self_cmd():
+    return [sys.executable, os.path.realpath(__file__)]
+
+
+def session_info():
+    sess = os.environ.get("XDG_SESSION_TYPE", "").lower()
+    if not sess:
+        sess = ("wayland" if os.environ.get("WAYLAND_DISPLAY")
+                else "x11" if os.environ.get("DISPLAY") else "")
+    desk = os.environ.get("XDG_CURRENT_DESKTOP") or os.environ.get("DESKTOP_SESSION") or "?"
+    return sess, desk
+
+
+def widget_plan(term="auto", size="100x46"):
+    """-> (méthode, commande) ; globe transparent sans bordure, collé au fond du bureau."""
+    sess, _ = session_info()
+    try:
+        cols, rows = (int(x) for x in size.lower().split("x"))
+    except ValueError:
+        cols, rows = 100, 46
+    inner = self_cmd() + ["--widget"]
+    kitty = shutil.which("kitty")
+    if sess == "wayland" and term in ("auto", "kitty") and kitty:
+        kitten = shutil.which("kitten")                 # Wayland : couche « fond d'écran »
+        base = [kitten] if kitten else [kitty, "+kitten"]
+        return "kitty-panel", base + ["panel", "--edge=background", f"--class={WIDGET_CLASS}",
+                                      "-o", "background_opacity=0"] + inner
+    if sess == "x11" or (sess != "wayland" and os.environ.get("DISPLAY")):
+        if term in ("auto", "kitty") and kitty:
+            return "x11-kitty", [kitty, "--class", WIDGET_CLASS, "-o", "background_opacity=0",
+                                 "-o", "hide_window_decorations=yes",
+                                 "-o", f"initial_window_width={cols}c",
+                                 "-o", f"initial_window_height={rows}c",
+                                 "-o", "remember_window_size=no"] + inner
+        if term in ("auto", "alacritty") and shutil.which("alacritty"):
+            return "x11-alacritty", ["alacritty", "--class", WIDGET_CLASS, "-o", "window.opacity=0",
+                                     "-o", 'window.decorations="None"',
+                                     "-o", f"window.dimensions.columns={cols}",
+                                     "-o", f"window.dimensions.lines={rows}", "-e"] + inner
+    return None, []
+
+
+def x11_tweak(timeout=6):
+    """X11 : fenêtre sous les autres, sur tous les bureaux, hors barre des tâches."""
+    if not (shutil.which("xdotool") and shutil.which("wmctrl")):
+        return False
+    try:
+        out = subprocess.run(["xdotool", "search", "--sync", "--class", WIDGET_CLASS],
+                             capture_output=True, text=True, timeout=timeout).stdout.split()
+    except Exception:
+        return False
+    ok = False
+    for wid in out:
+        r = subprocess.run(["wmctrl", "-i", "-r", hex(int(wid)), "-b",
+                            "add,below,sticky,skip_taskbar,skip_pager"], capture_output=True)
+        ok = ok or r.returncode == 0
+    return ok
+
+
+def stop_widgets():
+    n, me = 0, os.getpid()
+    for d in os.listdir("/proc"):
+        if not d.isdigit() or int(d) == me:
+            continue
+        try:
+            with open(f"/proc/{d}/cmdline", "rb") as f:
+                argv = [a.decode(errors="ignore") for a in f.read().split(b"\0") if a]
+        except OSError:
+            continue
+        if "--widget" in argv and any(os.path.basename(a) in ("search", "search-globe", "search.py")
+                                      for a in argv):
+            try:
+                os.kill(int(d), signal.SIGTERM)
+                n += 1
+            except OSError:
+                pass
+    return n
+
+
+def cmd_widget(args):
+    if args.action == "stop":
+        n = stop_widgets()
+        print(tx("wid_stopped", n=n) if n else tx("wid_nothing"))
+        return
+    method, cmd = widget_plan(args.terminal, args.size)
+    sess, desk = session_info()
+    print(tx("wid_env", s=sess or "?", d=desk, m=method or "-"))
+    if not method:
+        sys.exit(tx("wid_none"))
+    print(tx("wid_cmd", c=" ".join(shlex.quote(c) for c in cmd)))
+    if args.dry_run:
+        return
+    WIDGET_LOG.parent.mkdir(parents=True, exist_ok=True)
+    with WIDGET_LOG.open("w") as log:
+        proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+                                start_new_session=True)
+    time.sleep(1.5)
+    if proc.poll() is not None:                          # s'est arrêté tout de suite
+        try:
+            print(WIDGET_LOG.read_text(errors="replace")[-600:])
+        except OSError:
+            pass
+        sys.exit(tx("wid_failed"))
+    if method.startswith("x11") and not x11_tweak():
+        print(tx("wid_tools", l="xdotool wmctrl"))
+    print(tx("wid_started"))
+
+
+def dq(c):
+    return f'"{c}"' if " " in c else c
+
+
+def cmd_autostart(action):
+    _, desk = session_info()
+    line = " ".join(dq(c) for c in self_cmd() + ["widget"])
+    if action == "on":
+        AUTOSTART.parent.mkdir(parents=True, exist_ok=True)
+        AUTOSTART.write_text("[Desktop Entry]\nType=Application\nName=search-globe widget\n"
+                             f"Exec={line}\nTerminal=false\nNoDisplay=true\n"
+                             "X-GNOME-Autostart-enabled=true\nX-GNOME-Autostart-Delay=5\n",
+                             encoding="utf-8")
+        print(tx("auto_on", p=AUTOSTART))
+        low = desk.lower()
+        if any(w in low for w in ("hypr", "sway", "i3", "bspwm", "river", "dwm", "niri", "qtile")):
+            print(tx("auto_manual", d=desk, l=("exec-once = " if "hypr" in low else "exec ") + line))
+    elif action == "off":
+        try:
+            AUTOSTART.unlink()
+        except OSError:
+            pass
+        print(tx("auto_off"))
+    else:
+        print(tx("auto_state", s=tx("word_on") if AUTOSTART.exists() else tx("word_off")))
+
+
+def shellhook(shell):
+    sh = (shell or os.path.basename(os.environ.get("SHELL", "bash"))).lower()
+    if sh == "fish":
+        where = "~/.config/fish/config.fish"
+        code = ("if status is-interactive; and not set -q SEARCH_GLOBE_SHOWN\n"
+                "    set -gx SEARCH_GLOBE_SHOWN 1\n"
+                "    search --splash 3\n"
+                "end")
+    else:
+        where = "~/.zshrc" if sh == "zsh" else "~/.bashrc"
+        code = ('if [[ $- == *i* && -z "$SEARCH_GLOBE_SHOWN" ]]; then\n'
+                "    export SEARCH_GLOBE_SHOWN=1\n"
+                "    search --splash 3\n"
+                "fi")
+    print(f"# {where}\n{code}")
 
 
 def run_command(args, cfg):
@@ -2414,6 +3063,57 @@ def run_command(args, cfg):
         if changed:
             save_config(cfg)
         print(msg)
+    elif cmd == "theme":
+        if not args.value:
+            print(tx("c_themes") + " " + ", ".join(THEMES) + f"   → {cfg['theme']}")
+        else:
+            try:
+                v = apply_setting(cfg, "theme", args.value)
+            except ValueError as e:
+                sys.exit(f"✘ {e}")
+            save_config(cfg)
+            print(tx("ok_theme", n=v))
+    elif cmd == "eco":
+        if args.value:
+            try:
+                apply_setting(cfg, "perf", args.value)
+            except ValueError as e:
+                sys.exit(f"✘ {e}")
+            save_config(cfg)
+        print(tx("ok_perf", p=perf_text(cfg["perf"])))
+    elif cmd == "offline":
+        v = (args.value or "").lower()
+        if v == "on" or v in YES_WORDS:
+            cfg["offline"] = True
+        elif v in NO_WORDS:
+            cfg["offline"] = False
+        else:
+            print(tx("offline_state", s=tx("word_on") if cfg["offline"] else tx("word_off")))
+            return
+        save_config(cfg)
+        print(tx("ok_offline_on") if cfg["offline"] else tx("ok_offline_off"))
+    elif cmd == "consent":
+        act = (args.action or "status").lower()
+        if act == "log":
+            print(log_report(30))
+        elif act in YES_WORDS:
+            print(consent_screen(cfg) + "\n")
+            ok = (ask(tx("consent_ask"), "n").lower() in YES_WORDS) if sys.stdin.isatty() else True
+            set_consent(cfg, ok)
+            save_config(cfg)
+            print(tx("consent_granted") if ok else tx("consent_denied"))
+        elif act in NO_WORDS:
+            set_consent(cfg, False)
+            save_config(cfg)
+            print(tx("consent_denied"))
+        else:
+            print(consent_screen(cfg))
+    elif cmd == "widget":
+        cmd_widget(args)
+    elif cmd == "autostart":
+        cmd_autostart(args.action)
+    elif cmd == "shellhook":
+        shellhook(args.shell)
 
 
 def main():
@@ -2424,6 +3124,13 @@ def main():
     ap.add_argument("--engine", choices=sorted(ENGINES), help=tx("ap_o_engine"))
     ap.add_argument("--mode", type=norm_mode, help=tx("ap_o_mode"))
     ap.add_argument("--lang", type=norm_lang, help=tx("ap_o_lang"))
+    ap.add_argument("--theme", help=tx("ap_o_theme"))
+    ap.add_argument("--eco", action="store_true", help=tx("ap_o_eco"))
+    ap.add_argument("--offline", action="store_true", help=tx("ap_o_offline"))
+    ap.add_argument("--splash", nargs="?", const=3.0, type=float, metavar="N",
+                    help=tx("ap_o_splash"))
+    ap.add_argument("--widget", action="store_true", help=tx("ap_o_widget"))
+    ap.add_argument("--version", action="version", version=f"search-globe {VERSION}")
     sub = ap.add_subparsers(dest="cmd", metavar="<cmd>")
     sub.add_parser("setup", help=tx("ap_setup"))
     sub.add_parser("config", help=tx("ap_config"))
@@ -2437,17 +3144,32 @@ def main():
     p.add_argument("value", type=norm_lang)
     p = sub.add_parser("set", help=tx("ap_set"))
     p.add_argument("key", choices=("mode", "geo", "engine", "browser", "history_days",
-                                   "max_trends", "topics", "lang"))
+                                   "max_trends", "topics", "lang", "theme", "perf"))
     p.add_argument("value")
     p = sub.add_parser("exclude", help=tx("ap_exclude"))
     p.add_argument("action", choices=("add", "remove", "list", "clear"))
     p.add_argument("word", nargs="?")
+    for name in ("theme", "eco", "offline"):
+        p = sub.add_parser(name, help=tx("ap_" + name))
+        p.add_argument("value", nargs="?")
+    p = sub.add_parser("consent", help=tx("ap_consent"))
+    p.add_argument("action", nargs="?", default="status")
+    p = sub.add_parser("widget", help=tx("ap_widget"))
+    p.add_argument("action", nargs="?", choices=("start", "stop"), default="start")
+    p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--terminal", choices=("auto", "kitty", "alacritty"), default="auto")
+    p.add_argument("--size", default="100x46", metavar="COLSxROWS")
+    p = sub.add_parser("autostart", help=tx("ap_autostart"))
+    p.add_argument("action", nargs="?", choices=("on", "off", "status"), default="status")
+    p = sub.add_parser("shellhook", help=tx("ap_shellhook"))
+    p.add_argument("shell", nargs="?", choices=("fish", "bash", "zsh"))
     args = ap.parse_args()
 
     if args.cmd:
         run_command(args, cfg)
         return
-    if not existed and sys.stdin.isatty() and sys.stdout.isatty():
+    if (not existed and sys.stdin.isatty() and sys.stdout.isatty()
+            and not (args.widget or args.splash)):
         cfg = wizard(cfg)
     for key, env in (("geo", "SEARCH_GEO"), ("engine", "SEARCH_ENGINE"),
                      ("mode", "SEARCH_MODE"), ("lang", "SEARCH_LANG")):
@@ -2456,6 +3178,12 @@ def main():
     for key in ("geo", "engine", "mode", "lang"):         # options de session (non enregistrées)
         if getattr(args, key):
             cfg[key] = getattr(args, key)
+    if args.theme:
+        cfg["theme"] = args.theme.lower()
+    if args.eco:
+        cfg["perf"] = "on"
+    if args.offline:
+        cfg["offline"] = True
     cfg = sanitize(cfg)
     set_lang(ui_lang(cfg))
 
@@ -2467,7 +3195,7 @@ def main():
         sys.exit(f"Impossible de charger la carte du monde ({e}).\n"
                  "Check your connection: it is downloaded only once.")
     world = build_world(cells)
-    app = App(world, Trends(cfg), cfg)
+    app = App(world, Trends(cfg), cfg, widget=args.widget, splash=args.splash or 0)
     try:
         curses.wrapper(app.run)
     except KeyboardInterrupt:

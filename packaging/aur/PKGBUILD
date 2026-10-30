@@ -1,0 +1,36 @@
+# Maintainer: VOTRE NOM <votre@email.com>
+#
+# Paquet AUR de search-globe (release).
+# Avant de publier : remplacer _user, mettre à jour pkgver, puis lancer `updpkgsums`.
+# Voir docs/AUR.md pour le guide complet.
+
+_user=VOTRE_PSEUDO
+_repo=search-globe
+pkgname=search-globe
+pkgver=2.4.0
+pkgrel=1
+pkgdesc="Holographic 3D globe for your terminal: trends, news and web search"
+arch=('any')
+url="https://github.com/${_user}/${_repo}"
+license=('MIT')
+depends=('python' 'python-numpy' 'xdg-utils')
+optdepends=('kitty: desktop widget (transparent globe, Wayland and X11)'
+            'alacritty: desktop widget on X11'
+            'xdotool: desktop widget on X11 (window lookup)'
+            'wmctrl: desktop widget on X11 (keep below, sticky)')
+source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('SKIP')  # remplacé par `updpkgsums` une fois la release publiée
+
+check() {
+  cd "${srcdir}/${_repo}-${pkgver}"
+  python -c "import ast, sys; ast.parse(open('search.py', encoding='utf-8').read())"
+}
+
+package() {
+  cd "${srcdir}/${_repo}-${pkgver}"
+  install -Dm755 search.py "${pkgdir}/usr/bin/search-globe"
+  # Raccourci « search ». Si un autre paquet fournit déjà /usr/bin/search, supprimer cette ligne.
+  ln -s search-globe "${pkgdir}/usr/bin/search"
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+  install -Dm644 README.md "${pkgdir}/usr/share/doc/${pkgname}/README.md"
+}
