@@ -819,6 +819,21 @@ _add("wid_tools", "Outils conseillés pour X11 : {l}  (sudo pacman -S {l})",
      "Рекомендуемые инструменты для X11: {l}  (sudo pacman -S {l})",
      "Strumenti consigliati per X11: {l}  (sudo pacman -S {l})",
      "Ferramentas recomendadas para X11: {l}  (sudo pacman -S {l})")
+_add("wid_try_next", "↪ La méthode « {m} » a échoué, essai de la suivante…",
+     "↪ Method “{m}” failed, trying the next one…",
+     "↪ El método «{m}» falló, probando el siguiente…",
+     "↪ Methode „{m}“ fehlgeschlagen, nächste wird versucht…",
+     "↪ Метод «{m}» не сработал, пробую следующий…",
+     "↪ Il metodo «{m}» è fallito, provo il successivo…",
+     "↪ O método «{m}» falhou, tentando o próximo…")
+_add("wid_gnome_note",
+     "ℹ Ton bureau n'a pas de couche « fond d'écran » (layer-shell) : j'utilise XWayland, méthode expérimentale.",
+     "ℹ Your desktop has no “background” layer (layer-shell): using XWayland, an experimental method.",
+     "ℹ Tu escritorio no tiene capa de «fondo» (layer-shell): uso XWayland, un método experimental.",
+     "ℹ Dein Desktop hat keine „Hintergrund“-Ebene (Layer-Shell): XWayland wird genutzt, eine experimentelle Methode.",
+     "ℹ В вашей среде нет слоя «фон» (layer-shell): использую XWayland, экспериментальный метод.",
+     "ℹ Il tuo desktop non ha un livello «sfondo» (layer-shell): uso XWayland, un metodo sperimentale.",
+     "ℹ Seu desktop não tem camada de «plano de fundo» (layer-shell): uso o XWayland, um método experimental.")
 _add("wid_stopped", "✔ {n} widget(s) arrêté(s).", "✔ {n} widget(s) stopped.",
      "✔ {n} widget(s) detenido(s).", "✔ {n} Widget(s) beendet.", "✔ Остановлено виджетов: {n}.",
      "✔ {n} widget fermato/i.", "✔ {n} widget(s) parado(s).")
@@ -2873,38 +2888,52 @@ def session_info():
     return sess, desk
 
 
-def widget_plan(term="auto", size="100x46"):
-    """-> (méthode, commande) ; globe transparent sans bordure, collé au fond du bureau."""
-    sess, _ = session_info()
+NO_LAYER_SHELL = ("gnome", "ubuntu", "budgie", "pantheon", "unity")   # pas de layer-shell
+
+
+def widget_plans(term="auto", size="100x46"):
+    """-> [(méthode, commande), …] par ordre de préférence ; globe transparent sans bordure."""
+    sess, desk = session_info()
     try:
         cols, rows = (int(x) for x in size.lower().split("x"))
     except ValueError:
         cols, rows = 100, 46
     inner = self_cmd() + ["--widget"]
     kitty = shutil.which("kitty")
-    if sess == "wayland" and term in ("auto", "kitty") and kitty:
-        kitten = shutil.which("kitten")                 # Wayland : couche « fond d'écran »
-        base = [kitten] if kitten else [kitty, "+kitten"]
-        return "kitty-panel", base + ["panel", "--edge=background", f"--class={WIDGET_CLASS}",
-                                      "-o", "background_opacity=0"] + inner
-    if sess == "x11" or (sess != "wayland" and os.environ.get("DISPLAY")):
-        if term in ("auto", "kitty") and kitty:
-            return "x11-kitty", [kitty, "--class", WIDGET_CLASS, "-o", "background_opacity=0",
-                                 "-o", "hide_window_decorations=yes",
-                                 "-o", f"initial_window_width={cols}c",
-                                 "-o", f"initial_window_height={rows}c",
-                                 "-o", "remember_window_size=no"] + inner
-        if term in ("auto", "alacritty") and shutil.which("alacritty"):
-            return "x11-alacritty", ["alacritty", "--class", WIDGET_CLASS, "-o", "window.opacity=0",
-                                     "-o", 'window.decorations="None"',
-                                     "-o", f"window.dimensions.columns={cols}",
-                                     "-o", f"window.dimensions.lines={rows}", "-e"] + inner
-    return None, []
+    alacritty = shutil.which("alacritty")
+    kitty_opts = ["--class", WIDGET_CLASS, "-o", "background_opacity=0",
+                  "-o", "hide_window_decorations=yes", "-o", f"initial_window_width={cols}c",
+                  "-o", f"initial_window_height={rows}c", "-o", "remember_window_size=no"]
+    ala_opts = ["--class", WIDGET_CLASS, "-o", "window.opacity=0",
+                "-o", 'window.decorations="None"', "-o", f"window.dimensions.columns={cols}",
+                "-o", f"window.dimensions.lines={rows}", "-e"]
+    plans = []
+    want_kitty = term in ("auto", "kitty") and kitty
+    want_ala = term in ("auto", "alacritty") and alacritty
+    if sess == "wayland":
+        if want_kitty and not any(w in desk.lower() for w in NO_LAYER_SHELL):
+            kitten = shutil.which("kitten")             # couche « fond d'écran » (layer-shell)
+            base = [kitten] if kitten else [kitty, "+kitten"]
+            plans.append(("kitty-panel", base + ["panel", "--edge=background",
+                          f"--class={WIDGET_CLASS}", "-o", "background_opacity=0"] + inner))
+        if os.environ.get("DISPLAY"):                   # XWayland : fenêtre X11 sous Wayland
+            if want_kitty:
+                plans.append(("xwayland-kitty", [kitty, "-o", "linux_display_server=x11"]
+                              + kitty_opts + inner))
+            if want_ala:
+                plans.append(("xwayland-alacritty", ["env", "-u", "WAYLAND_DISPLAY",
+                              "WINIT_UNIX_BACKEND=x11", alacritty] + ala_opts + inner))
+    elif sess == "x11" or os.environ.get("DISPLAY"):
+        if want_kitty:
+            plans.append(("x11-kitty", [kitty] + kitty_opts + inner))
+        if want_ala:
+            plans.append(("x11-alacritty", [alacritty] + ala_opts + inner))
+    return plans
 
 
 def x11_tweak(timeout=6):
-    """X11 : fenêtre sous les autres, sur tous les bureaux, hors barre des tâches."""
-    if not (shutil.which("xdotool") and shutil.which("wmctrl")):
+    """Fenêtre X11/XWayland : type « bureau » (sous les autres, tous les bureaux, sans cadre)."""
+    if not shutil.which("xdotool"):
         return False
     try:
         out = subprocess.run(["xdotool", "search", "--sync", "--class", WIDGET_CLASS],
@@ -2913,10 +2942,21 @@ def x11_tweak(timeout=6):
         return False
     ok = False
     for wid in out:
-        r = subprocess.run(["wmctrl", "-i", "-r", hex(int(wid)), "-b",
-                            "add,below,sticky,skip_taskbar,skip_pager"], capture_output=True)
-        ok = ok or r.returncode == 0
+        if shutil.which("xprop"):
+            r = subprocess.run(["xprop", "-id", wid, "-f", "_NET_WM_WINDOW_TYPE", "32a",
+                                "-set", "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_DESKTOP"],
+                               capture_output=True)
+            ok = ok or r.returncode == 0
+        if shutil.which("wmctrl"):
+            r = subprocess.run(["wmctrl", "-i", "-r", hex(int(wid)), "-b",
+                                "add,below,sticky,skip_taskbar,skip_pager"], capture_output=True)
+            ok = ok or r.returncode == 0
     return ok
+
+
+def missing_x11_tools():
+    pk = {"xdotool": "xdotool", "wmctrl": "wmctrl", "xprop": "xorg-xprop"}
+    return [pk[t] for t in pk if not shutil.which(t)]
 
 
 def stop_widgets():
@@ -2944,28 +2984,36 @@ def cmd_widget(args):
         n = stop_widgets()
         print(tx("wid_stopped", n=n) if n else tx("wid_nothing"))
         return
-    method, cmd = widget_plan(args.terminal, args.size)
+    plans = widget_plans(args.terminal, args.size)
     sess, desk = session_info()
-    print(tx("wid_env", s=sess or "?", d=desk, m=method or "-"))
-    if not method:
+    print(tx("wid_env", s=sess or "?", d=desk, m=" → ".join(m for m, _ in plans) or "-"))
+    if not plans:
         sys.exit(tx("wid_none"))
-    print(tx("wid_cmd", c=" ".join(shlex.quote(c) for c in cmd)))
+    for method, cmd in plans:
+        print(f"[{method}] " + tx("wid_cmd", c=" ".join(shlex.quote(c) for c in cmd)))
     if args.dry_run:
         return
+    if plans[0][0].startswith("xwayland") and any(w in desk.lower() for w in NO_LAYER_SHELL):
+        print(tx("wid_gnome_note"))
     WIDGET_LOG.parent.mkdir(parents=True, exist_ok=True)
-    with WIDGET_LOG.open("w") as log:
-        proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
-                                start_new_session=True)
-    time.sleep(1.5)
-    if proc.poll() is not None:                          # s'est arrêté tout de suite
+    for k, (method, cmd) in enumerate(plans):
+        with WIDGET_LOG.open("w") as log:
+            proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+                                    start_new_session=True)
+        time.sleep(1.5)
+        if proc.poll() is None:                          # il tourne : on valide cette méthode
+            if method.startswith(("x11", "xwayland")):
+                if not x11_tweak():
+                    print(tx("wid_tools", l=" ".join(missing_x11_tools()) or "xdotool wmctrl xorg-xprop"))
+            print(f"[{method}] " + tx("wid_started"))
+            return
         try:
             print(WIDGET_LOG.read_text(errors="replace")[-600:])
         except OSError:
             pass
-        sys.exit(tx("wid_failed"))
-    if method.startswith("x11") and not x11_tweak():
-        print(tx("wid_tools", l="xdotool wmctrl"))
-    print(tx("wid_started"))
+        if k + 1 < len(plans):
+            print(tx("wid_try_next", m=method))
+    sys.exit(tx("wid_failed"))
 
 
 def dq(c):
