@@ -834,6 +834,67 @@ _add("wid_gnome_note",
      "ℹ В вашей среде нет слоя «фон» (layer-shell): использую XWayland, экспериментальный метод.",
      "ℹ Il tuo desktop non ha un livello «sfondo» (layer-shell): uso XWayland, un metodo sperimentale.",
      "ℹ Seu desktop não tem camada de «plano de fundo» (layer-shell): uso o XWayland, um método experimental.")
+_add("hint_widget",
+     "clic : ouvrir · Entrée : chercher · / : paramètres · Tab : mode",
+     "click: open · Enter: search · / : settings · Tab: mode",
+     "clic: abrir · Intro: buscar · / : ajustes · Tab: modo",
+     "Klick: öffnen · Enter: suchen · / : Einstellungen · Tab: Modus",
+     "клик: открыть · Enter: поиск · / : настройки · Tab: режим",
+     "clic: apri · Invio: cerca · / : impostazioni · Tab: modalità",
+     "clique: abrir · Enter: buscar · / : ajustes · Tab: modo")
+_add("wid_running", "Un widget tourne déjà (search widget restart pour le relancer).",
+     "A widget is already running (search widget restart to relaunch it).",
+     "Ya hay un widget en ejecución (search widget restart para reiniciarlo).",
+     "Es läuft bereits ein Widget (search widget restart zum Neustart).",
+     "Виджет уже запущен (search widget restart — перезапустить).",
+     "Un widget è già in esecuzione (search widget restart per riavviarlo).",
+     "Já há um widget em execução (search widget restart para reiniciar).")
+_add("wid_info", "Zone : {w}×{h} px (écran {sw}×{sh}) · police {f} pt · style {s}",
+     "Area: {w}×{h} px (screen {sw}×{sh}) · font {f} pt · style {s}",
+     "Zona: {w}×{h} px (pantalla {sw}×{sh}) · fuente {f} pt · estilo {s}",
+     "Fläche: {w}×{h} px (Bildschirm {sw}×{sh}) · Schrift {f} pt · Stil {s}",
+     "Область: {w}×{h} px (экран {sw}×{sh}) · шрифт {f} pt · стиль {s}",
+     "Area: {w}×{h} px (schermo {sw}×{sh}) · carattere {f} pt · stile {s}",
+     "Área: {w}×{h} px (tela {sw}×{sh}) · fonte {f} pt · estilo {s}")
+_add("err_area", "taille en pixels attendue : LARGEURxHAUTEUR (ex. 1920x1080) ou auto",
+     "size in pixels expected: WIDTHxHEIGHT (e.g. 1920x1080) or auto",
+     "se espera un tamaño en píxeles: ANCHOxALTO (p. ej. 1920x1080) o auto",
+     "Größe in Pixeln erwartet: BREITExHÖHE (z. B. 1920x1080) oder auto",
+     "ожидается размер в пикселях: ШИРИНАxВЫСОТА (напр. 1920x1080) или auto",
+     "dimensione in pixel attesa: LARGHEZZAxALTEZZA (es. 1920x1080) o auto",
+     "tamanho em pixels esperado: LARGURAxALTURA (ex.: 1920x1080) ou auto")
+_add("err_style", "style inconnu. Choisis parmi : {l}", "unknown style. Choose from: {l}",
+     "estilo desconocido. Elige entre: {l}", "unbekannter Stil. Wähle aus: {l}",
+     "неизвестный стиль. Выберите: {l}", "stile sconosciuto. Scegli tra: {l}",
+     "estilo desconhecido. Escolha entre: {l}")
+_add("err_bool", "choisis : on ou off", "choose: on or off", "elige: on u off",
+     "wähle: on oder off", "выберите: on или off", "scegli: on o off", "escolha: on ou off")
+_add("ap_o_area", "taille du widget en pixels (ex. 1920x1080), sinon auto",
+     "widget size in pixels (e.g. 1920x1080), else auto",
+     "tamaño del widget en píxeles (p. ej. 1920x1080), o auto",
+     "Widget-Größe in Pixeln (z. B. 1920x1080), sonst auto",
+     "размер виджета в пикселях (напр. 1920x1080), иначе auto",
+     "dimensione del widget in pixel (es. 1920x1080), altrimenti auto",
+     "tamanho do widget em pixels (ex.: 1920x1080), ou auto")
+_add("ap_o_style", "fond du widget : glass (verre sombre), clear (transparent), solid",
+     "widget background: glass (dark glass), clear (transparent), solid",
+     "fondo del widget: glass (cristal oscuro), clear (transparente), solid",
+     "Widget-Hintergrund: glass (dunkles Glas), clear (transparent), solid",
+     "фон виджета: glass (тёмное стекло), clear (прозрачный), solid",
+     "sfondo del widget: glass (vetro scuro), clear (trasparente), solid",
+     "fundo do widget: glass (vidro escuro), clear (transparente), solid")
+_add("ap_o_font", "taille de police du widget en points (sinon auto)",
+     "widget font size in points (else auto)", "tamaño de fuente del widget en puntos (o auto)",
+     "Schriftgröße des Widgets in Punkt (sonst auto)", "размер шрифта виджета в пунктах (иначе auto)",
+     "dimensione carattere del widget in punti (altrimenti auto)",
+     "tamanho da fonte do widget em pontos (ou auto)")
+_add("ap_o_focus", "ne pas donner le type « bureau » à la fenêtre (si le clavier ne répond pas)",
+     "do not give the window the “desktop” type (if the keyboard does not respond)",
+     "no dar a la ventana el tipo «escritorio» (si el teclado no responde)",
+     "dem Fenster nicht den Typ „Desktop“ geben (falls die Tastatur nicht reagiert)",
+     "не задавать окну тип «рабочий стол» (если клавиатура не отвечает)",
+     "non dare alla finestra il tipo «desktop» (se la tastiera non risponde)",
+     "não dar à janela o tipo «desktop» (se o teclado não responder)")
 _add("wid_stopped", "✔ {n} widget(s) arrêté(s).", "✔ {n} widget(s) stopped.",
      "✔ {n} widget(s) detenido(s).", "✔ {n} Widget(s) beendet.", "✔ Остановлено виджетов: {n}.",
      "✔ {n} widget fermato/i.", "✔ {n} widget(s) parado(s).")
@@ -1061,7 +1122,8 @@ BROWSER_NAMES = ("firefox", "librewolf", "zen", "floorp", "brave", "vivaldi",
 DEFAULTS = {"mode": "base", "geo": "FR", "engine": "google", "browser": "auto",
             "history_days": 60, "max_trends": 8, "topics": 3, "lang": "auto",
             "theme": "cyan", "perf": "auto", "consent": False, "consent_date": "",
-            "offline": False, "exclude": []}
+            "offline": False, "widget_area": "auto", "widget_style": "glass",
+            "widget_font": "auto", "widget_interactive": True, "exclude": []}
 CONFIG_PATH = (Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
                / "search-globe" / "config.json")
 def mode_text(m):
@@ -1092,6 +1154,13 @@ def sanitize(cfg):
     cfg["consent"] = cfg.get("consent") is True      # jamais de consentement « par défaut »
     cfg["offline"] = cfg.get("offline") is True
     cfg["consent_date"] = str(cfg.get("consent_date", ""))[:10] if cfg["consent"] else ""
+    wa = str(cfg.get("widget_area", "auto")).strip().lower()
+    cfg["widget_area"] = wa if wa == "auto" or re.fullmatch(r"\d{3,5}x\d{3,5}", wa) else "auto"
+    ws = str(cfg.get("widget_style", "glass")).strip().lower()
+    cfg["widget_style"] = ws if ws in WIDGET_STYLES else "glass"
+    wf = str(cfg.get("widget_font", "auto")).strip().lower()
+    cfg["widget_font"] = wf if wf == "auto" or (wf.isdigit() and 6 <= int(wf) <= 72) else "auto"
+    cfg["widget_interactive"] = cfg.get("widget_interactive", True) is not False
     ex = cfg.get("exclude", [])
     cfg["exclude"] = (sorted({str(x).strip().lower() for x in ex if str(x).strip()})
                       if isinstance(ex, list) else [])
@@ -1770,7 +1839,8 @@ class App:
         self.trends = trends
         self.cfg = cfg
         self.widget, self.splash = widget, float(splash or 0)
-        self.minimal = bool(widget or splash)        # globe seul : pas de barre, ni HUD, ni chat
+        # globe seul (sans barre, HUD ni chat) : écran d'accueil, ou widget non interactif
+        self.minimal = bool(splash or (widget and not cfg.get("widget_interactive", True)))
         self.ft, self.slow = None, 0
         self.eco = False
         self.geo = cfg["geo"]
@@ -1846,7 +1916,7 @@ class App:
             except OSError:
                 pass
         if key == "theme":
-            self.A = init_colors(self.cfg["theme"])
+            self.A = self.make_colors()
         if key == "perf":
             self.eco = self.want_eco()
         tr = self.trends
@@ -2193,6 +2263,13 @@ class App:
         else:
             self.search(target, now)
 
+    def make_colors(self):
+        A = init_colors(self.cfg.get("theme", "cyan"))
+        if self.widget:                              # plus de contraste sur le fond d'écran
+            for lv in (2, 3, 4):
+                A[lv] |= curses.A_BOLD
+        return A
+
     def want_eco(self):
         p = self.cfg.get("perf", "auto")
         if p == "on":
@@ -2295,7 +2372,7 @@ class App:
             elif key == "\t":
                 self.cycle_mode(now)
             elif key == "\x1b":
-                return True
+                return not self.widget                  # Échap ne ferme pas le widget
             elif key in ("\x7f", "\b", curses.KEY_BACKSPACE):
                 if self.pos > 0:
                     del self.buf[self.pos - 1]
@@ -2344,9 +2421,10 @@ class App:
         left_cols = cols - int(pw * self.chat_p)          # largeur de la zone du globe
         H, W = ch * 4, cw * 2
         cx, cy = float(left_cols), H / 2.0
-        side = min(32, max(12, cols // 4))
+        side = min(32, max(8 if self.widget else 12, cols // (6 if self.widget else 4)))
         lab = 1.0 - self.chat_p
-        r0 = min((H / 2 - 8) / 1.25, left_cols - side * 2 * lab - 8, 115)
+        r0 = min((H / 2 - 8) / (1.18 if eco else 1.25), left_cols - side * 2 * lab - 8,
+                 400 if self.widget else 115)
         if ch < 12 or cols < 50 or (self.chat_p == 0 and (cols < 64 or r0 < 20)):
             put(scr, 0, 0, tx("too_small"), A[6])
             self.geom = None
@@ -2414,6 +2492,9 @@ class App:
         ar = np.linspace(0, math.tau, max(60, int(math.tau * r * 0.9)), endpoint=False)
         plot(lev, np.rint(cx + r * np.cos(ar)).astype(int),
              np.rint(cy - r * np.sin(ar)).astype(int), 5)
+        if self.widget:                                      # contour plus épais : meilleur contraste
+            plot(lev, np.rint(cx + (r + 1.4) * np.cos(ar)).astype(int),
+                 np.rint(cy - (r + 1.4) * np.sin(ar)).astype(int), 5)
         a2 = ar[::2]
         plot(lev, np.rint(cx + (r + 2.5) * np.cos(a2)).astype(int),
              np.rint(cy - (r + 2.5) * np.sin(a2)).astype(int), 2)
@@ -2583,7 +2664,8 @@ class App:
                 continue
             v, sd, txt = c["v"], c["sd"], c["txt"]
             nshow = min(len(txt), math.ceil(len(txt) * min(1.0, (v - 0.6) / 0.4)))
-            attr = (A[6] | curses.A_UNDERLINE) if (c["hover"] or c["hot"]) else A[8]
+            attr = ((A[6] | curses.A_UNDERLINE) if (c["hover"] or c["hot"])
+                    else (A[6] if self.widget else A[8]))
             if sd > 0:
                 put(scr, c["row"], c["c0"], txt[:nshow], attr)
             else:
@@ -2639,7 +2721,7 @@ class App:
                 cursor = (by + 1, bx + 4 + self.pos - scroll)
 
         # --- ligne d'aide ---
-        hint, hattr = tx("hint_main"), A[7]
+        hint, hattr = tx("hint_widget" if self.widget else "hint_main"), A[7]
         if t < 1.8:
             hint, hattr = tx("hint_boot"), A[5]
         if hover_globe:
@@ -2681,7 +2763,7 @@ class App:
         curses.mouseinterval(0)
         mouse_motion(True)                            # active le survol
         scr.keypad(True)
-        self.A = init_colors(self.cfg.get("theme", "cyan"))
+        self.A = self.make_colors()
         self.t0 = self.last = time.monotonic()
         self.trends.refresh()
         try:
@@ -2760,6 +2842,28 @@ def apply_setting(cfg, key, raw):
             v = v.lower()
             if v != "auto" and v not in BROWSER_NAMES:
                 raise ValueError("auto, " + ", ".join(BROWSER_NAMES))
+        elif key == "widget_area":
+            v = v.lower()
+            if v != "auto" and not re.fullmatch(r"\d{3,5}x\d{3,5}", v):
+                raise ValueError(tx("err_area"))
+        elif key == "widget_style":
+            v = v.lower()
+            if v not in WIDGET_STYLES:
+                raise ValueError(tx("err_style", l=", ".join(WIDGET_STYLES)))
+        elif key == "widget_font":
+            v = v.lower()
+            if v != "auto":
+                if not (v.isdigit() and 6 <= int(v) <= 72):
+                    raise ValueError(tx("err_range", lo=6, hi=72))
+                v = str(int(v))
+        elif key == "widget_interactive":
+            lv = v.lower()
+            if lv in ("on", "true", "1") or lv in YES_WORDS:
+                v = True
+            elif lv in ("off", "false", "0") or lv in NO_WORDS:
+                v = False
+            else:
+                raise ValueError(tx("err_bool"))
         elif key == "theme":
             v = v.lower()
             if v not in THEMES:
@@ -2889,49 +2993,94 @@ def session_info():
 
 
 NO_LAYER_SHELL = ("gnome", "ubuntu", "budgie", "pantheon", "unity")   # pas de layer-shell
+# style -> (opacité du fond, couleur du fond). « glass » = verre sombre : le globe ressort du fond d'écran
+WIDGET_STYLES = {"glass": (0.42, "#04060c"), "clear": (0.0, "#000000"), "solid": (0.94, "#03050a")}
 
 
-def widget_plans(term="auto", size="100x46"):
-    """-> [(méthode, commande), …] par ordre de préférence ; globe transparent sans bordure."""
+def screen_size():
+    """Taille de l'écran en pixels (xrandr, sinon xdpyinfo, sinon 1920x1080)."""
+    for cmd, pat in ((["xrandr", "--current"], r"current\s+(\d+)\s*x\s*(\d+)"),
+                     (["xdpyinfo"], r"dimensions:\s+(\d+)x(\d+)")):
+        if shutil.which(cmd[0]):
+            try:
+                out = subprocess.run(cmd, capture_output=True, text=True, timeout=3).stdout
+            except Exception:
+                continue
+            m = re.search(pat, out)
+            if m:
+                return int(m.group(1)), int(m.group(2))
+    return 1920, 1080
+
+
+def widget_geometry(cfg, area=None, font=None):
+    """Zone du widget en pixels, toujours contenue dans l'écran."""
+    sw, sh = screen_size()
+    area = (area or cfg.get("widget_area", "auto")).lower()
+    if area == "auto":
+        w, h = max(640, sw - 80), max(480, sh - 110)      # grand, sans cacher la barre du haut
+    else:
+        w, h = (int(x) for x in area.split("x"))
+    w, h = min(w, sw), min(h, sh)                          # jamais plus grand que l'écran
+    x, y = (sw - w) // 2, max(40, (sh - h) // 2 + 20)
+    f = str(font or cfg.get("widget_font", "auto"))
+    # police : assez petite pour garder ~100 colonnes (écran étroit ou portrait), sinon h/58
+    f = max(8, min(round(h / 58), round(w / 80))) if f == "auto" else int(f)
+    return dict(w=w, h=h, x=x, y=y, font=f, sw=sw, sh=sh)
+
+
+def write_kitty_conf(geom, style):
+    """Config kitty DÉDIÉE au widget : indépendante de ton kitty.conf."""
+    op, bg = WIDGET_STYLES[style]
+    lines = [f"font_size {geom['font']}", "window_padding_width 0", "hide_window_decorations yes",
+             f"background_opacity {op}", f"background {bg}", "confirm_os_window_close 0",
+             "enable_audio_bell no", "cursor_blink_interval 0", "remember_window_size no",
+             f"initial_window_width {geom['w']}", f"initial_window_height {geom['h']}",
+             "shell_integration disabled", "update_check_interval 0", "allow_remote_control no",
+             "close_on_child_death yes"]
+    path = CONFIG_PATH.parent / "kitty-widget.conf"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
+
+
+def widget_plans(term, geom, style):
+    """-> [(méthode, commande), …] par ordre de préférence."""
     sess, desk = session_info()
-    try:
-        cols, rows = (int(x) for x in size.lower().split("x"))
-    except ValueError:
-        cols, rows = 100, 46
     inner = self_cmd() + ["--widget"]
-    kitty = shutil.which("kitty")
-    alacritty = shutil.which("alacritty")
-    kitty_opts = ["--class", WIDGET_CLASS, "-o", "background_opacity=0",
-                  "-o", "hide_window_decorations=yes", "-o", f"initial_window_width={cols}c",
-                  "-o", f"initial_window_height={rows}c", "-o", "remember_window_size=no"]
-    ala_opts = ["--class", WIDGET_CLASS, "-o", "window.opacity=0",
-                "-o", 'window.decorations="None"', "-o", f"window.dimensions.columns={cols}",
-                "-o", f"window.dimensions.lines={rows}", "-e"]
-    plans = []
+    kitty, alacritty = shutil.which("kitty"), shutil.which("alacritty")
     want_kitty = term in ("auto", "kitty") and kitty
     want_ala = term in ("auto", "alacritty") and alacritty
+    conf = str(write_kitty_conf(geom, style)) if want_kitty else ""
+    op, bg = WIDGET_STYLES[style]
+    px = geom["font"] * 4 / 3                              # points -> pixels (96 ppp)
+    cols, rows = int(geom["w"] / (px * 0.6)), int(geom["h"] / (px * 1.25))
+    ala = ["--class", WIDGET_CLASS, "-o", f"window.opacity={op}",
+           "-o", f'colors.primary.background="{bg}"', "-o", 'window.decorations="None"',
+           "-o", f"font.size={geom['font']}", "-o", f"window.dimensions.columns={cols}",
+           "-o", f"window.dimensions.lines={rows}", "-e"]
+    plans = []
     if sess == "wayland":
         if want_kitty and not any(w in desk.lower() for w in NO_LAYER_SHELL):
-            kitten = shutil.which("kitten")             # couche « fond d'écran » (layer-shell)
+            kitten = shutil.which("kitten")                 # couche « fond d'écran » (layer-shell)
             base = [kitten] if kitten else [kitty, "+kitten"]
-            plans.append(("kitty-panel", base + ["panel", "--edge=background",
-                          f"--class={WIDGET_CLASS}", "-o", "background_opacity=0"] + inner))
-        if os.environ.get("DISPLAY"):                   # XWayland : fenêtre X11 sous Wayland
+            plans.append(("kitty-panel", base + ["panel", "--edge=background", f"--config={conf}",
+                                                  f"--class={WIDGET_CLASS}"] + inner))
+        if os.environ.get("DISPLAY"):                       # XWayland : fenêtre X11 sous Wayland
             if want_kitty:
-                plans.append(("xwayland-kitty", [kitty, "-o", "linux_display_server=x11"]
-                              + kitty_opts + inner))
+                plans.append(("xwayland-kitty", [kitty, "--config", conf, "--class", WIDGET_CLASS,
+                                                 "-o", "linux_display_server=x11"] + inner))
             if want_ala:
                 plans.append(("xwayland-alacritty", ["env", "-u", "WAYLAND_DISPLAY",
-                              "WINIT_UNIX_BACKEND=x11", alacritty] + ala_opts + inner))
+                              "WINIT_UNIX_BACKEND=x11", alacritty] + ala + inner))
     elif sess == "x11" or os.environ.get("DISPLAY"):
         if want_kitty:
-            plans.append(("x11-kitty", [kitty] + kitty_opts + inner))
+            plans.append(("x11-kitty", [kitty, "--config", conf, "--class", WIDGET_CLASS] + inner))
         if want_ala:
-            plans.append(("x11-alacritty", [alacritty] + ala_opts + inner))
+            plans.append(("x11-alacritty", [alacritty] + ala + inner))
     return plans
 
 
-def x11_tweak(timeout=6):
+def x11_tweak(geom=None, desktop_type=True, timeout=6):
     """Fenêtre X11/XWayland : type « bureau » (sous les autres, tous les bureaux, sans cadre)."""
     if not shutil.which("xdotool"):
         return False
@@ -2942,15 +3091,20 @@ def x11_tweak(timeout=6):
         return False
     ok = False
     for wid in out:
-        if shutil.which("xprop"):
+        if desktop_type and shutil.which("xprop"):
             r = subprocess.run(["xprop", "-id", wid, "-f", "_NET_WM_WINDOW_TYPE", "32a",
                                 "-set", "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_DESKTOP"],
                                capture_output=True)
             ok = ok or r.returncode == 0
         if shutil.which("wmctrl"):
-            r = subprocess.run(["wmctrl", "-i", "-r", hex(int(wid)), "-b",
+            hx = hex(int(wid))
+            r = subprocess.run(["wmctrl", "-i", "-r", hx, "-b",
                                 "add,below,sticky,skip_taskbar,skip_pager"], capture_output=True)
             ok = ok or r.returncode == 0
+            if geom:                                         # centre le widget dans l'écran
+                subprocess.run(["wmctrl", "-i", "-r", hx, "-e",
+                                f"0,{geom['x']},{geom['y']},{geom['w']},{geom['h']}"],
+                               capture_output=True)
     return ok
 
 
@@ -2959,8 +3113,8 @@ def missing_x11_tools():
     return [pk[t] for t in pk if not shutil.which(t)]
 
 
-def stop_widgets():
-    n, me = 0, os.getpid()
+def find_widgets():
+    me, found = os.getpid(), []
     for d in os.listdir("/proc"):
         if not d.isdigit() or int(d) == me:
             continue
@@ -2971,28 +3125,48 @@ def stop_widgets():
             continue
         if "--widget" in argv and any(os.path.basename(a) in ("search", "search-globe", "search.py")
                                       for a in argv):
-            try:
-                os.kill(int(d), signal.SIGTERM)
-                n += 1
-            except OSError:
-                pass
+            found.append(int(d))
+    return found
+
+
+def stop_widgets():
+    n = 0
+    for pid in find_widgets():
+        try:
+            os.kill(pid, signal.SIGTERM)
+            n += 1
+        except OSError:
+            pass
     return n
 
 
-def cmd_widget(args):
-    if args.action == "stop":
+def cmd_widget(args, cfg):
+    if not (sys.stdin.isatty() or sys.stdout.isatty() or args.dry_run):
+        # lancé sans terminal (démarrage de session) : tout est journalisé
+        WIDGET_LOG.parent.mkdir(parents=True, exist_ok=True)
+        sys.stdout = sys.stderr = (WIDGET_LOG.parent / "autostart.log").open("a", buffering=1)
+        print(time.strftime("--- %Y-%m-%d %H:%M:%S"))
+    if args.action in ("stop", "restart"):
         n = stop_widgets()
         print(tx("wid_stopped", n=n) if n else tx("wid_nothing"))
-        return
-    plans = widget_plans(args.terminal, args.size)
+        if args.action == "stop":
+            return
+        time.sleep(0.8)
+    style = args.style or cfg.get("widget_style", "glass")
+    geom = widget_geometry(cfg, args.area, args.font)
+    plans = widget_plans(args.terminal, geom, style)
     sess, desk = session_info()
     print(tx("wid_env", s=sess or "?", d=desk, m=" → ".join(m for m, _ in plans) or "-"))
+    print(tx("wid_info", w=geom["w"], h=geom["h"], sw=geom["sw"], sh=geom["sh"],
+             f=geom["font"], s=style))
     if not plans:
         sys.exit(tx("wid_none"))
     for method, cmd in plans:
         print(f"[{method}] " + tx("wid_cmd", c=" ".join(shlex.quote(c) for c in cmd)))
     if args.dry_run:
         return
+    if find_widgets():
+        sys.exit(tx("wid_running"))                # une seule instance à la fois
     if plans[0][0].startswith("xwayland") and any(w in desk.lower() for w in NO_LAYER_SHELL):
         print(tx("wid_gnome_note"))
     WIDGET_LOG.parent.mkdir(parents=True, exist_ok=True)
@@ -3003,7 +3177,7 @@ def cmd_widget(args):
         time.sleep(1.5)
         if proc.poll() is None:                          # il tourne : on valide cette méthode
             if method.startswith(("x11", "xwayland")):
-                if not x11_tweak():
+                if not x11_tweak(geom, desktop_type=not args.focusable):
                     print(tx("wid_tools", l=" ".join(missing_x11_tools()) or "xdotool wmctrl xorg-xprop"))
             print(f"[{method}] " + tx("wid_started"))
             return
@@ -3157,7 +3331,7 @@ def run_command(args, cfg):
         else:
             print(consent_screen(cfg))
     elif cmd == "widget":
-        cmd_widget(args)
+        cmd_widget(args, cfg)
     elif cmd == "autostart":
         cmd_autostart(args.action)
     elif cmd == "shellhook":
@@ -3192,7 +3366,9 @@ def main():
     p.add_argument("value", type=norm_lang)
     p = sub.add_parser("set", help=tx("ap_set"))
     p.add_argument("key", choices=("mode", "geo", "engine", "browser", "history_days",
-                                   "max_trends", "topics", "lang", "theme", "perf"))
+                                   "max_trends", "topics", "lang", "theme", "perf",
+                                   "widget_area", "widget_style", "widget_font",
+                                   "widget_interactive"))
     p.add_argument("value")
     p = sub.add_parser("exclude", help=tx("ap_exclude"))
     p.add_argument("action", choices=("add", "remove", "list", "clear"))
@@ -3203,10 +3379,13 @@ def main():
     p = sub.add_parser("consent", help=tx("ap_consent"))
     p.add_argument("action", nargs="?", default="status")
     p = sub.add_parser("widget", help=tx("ap_widget"))
-    p.add_argument("action", nargs="?", choices=("start", "stop"), default="start")
+    p.add_argument("action", nargs="?", choices=("start", "stop", "restart"), default="start")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--terminal", choices=("auto", "kitty", "alacritty"), default="auto")
-    p.add_argument("--size", default="100x46", metavar="COLSxROWS")
+    p.add_argument("--area", metavar="WxH", help=tx("ap_o_area"))
+    p.add_argument("--style", choices=sorted(WIDGET_STYLES), help=tx("ap_o_style"))
+    p.add_argument("--font", metavar="PT", help=tx("ap_o_font"))
+    p.add_argument("--focusable", action="store_true", help=tx("ap_o_focus"))
     p = sub.add_parser("autostart", help=tx("ap_autostart"))
     p.add_argument("action", nargs="?", choices=("on", "off", "status"), default="status")
     p = sub.add_parser("shellhook", help=tx("ap_shellhook"))

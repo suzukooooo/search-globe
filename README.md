@@ -31,8 +31,22 @@ Le code n'a donc aucune prétention de perfection. Il peut contenir des bugs ou 
 
 Testé sur **CachyOS / Arch Linux**. Prérequis : Python 3, `numpy`, `xdg-utils`.
 
+### Depuis l'AUR (bientôt)
+
+> ⏸️ Le paquet AUR est prêt (`packaging/aur/PKGBUILD`) mais **pas encore publié** : l'inscription à l'AUR est actuellement fermée. En attendant, utilise l'installation depuis les sources ci-dessous.
+
+Une fois publié :
+
 ```bash
-git clone https://github.com/suzukooooo/search-globe.git
+yay -S search-globe        # ou : paru -S search-globe
+```
+
+Le paquet installera `search-globe` et le raccourci `search`. Pour le publier ou le maintenir : [docs/AUR.md](docs/AUR.md).
+
+### Depuis les sources
+
+```bash
+git clone https://github.com/VOTRE_PSEUDO/search-globe.git
 cd search-globe
 bash install.sh
 ```
@@ -104,13 +118,14 @@ Astuces : `Tab` complète les commandes, `↑` rappelle les précédentes, `PgUp
 | `search eco on\|off\|auto` | Mode économie |
 | `search consent [status\|yes\|no\|log]` | Consentement d'envoi des mots-clés et journal |
 | `search offline on\|off` | Mode hors-ligne |
-| `search widget [start\|stop]` | Globe en fond de bureau (`--dry-run` pour voir la commande) |
+| `search widget [start\|stop\|restart]` | Globe en fond de bureau (`--dry-run` pour voir la commande, `--area`, `--style`, `--font`, `--focusable`) |
 | `search autostart on\|off\|status` | Lancer le widget à l'ouverture de session |
 | `search shellhook [fish\|bash\|zsh]` | Ligne à ajouter pour afficher le globe à l'ouverture du terminal |
 | `search set geo US` | Pays des tendances et des actus |
 | `search set engine duckduckgo` | Moteur : `google`, `duckduckgo`, `brave`, `bing`, `qwant` |
 | `search set browser firefox` | Navigateur lu pour le mode perso (`auto` par défaut) |
 | `search set topics 3` / `history_days 30` / `max_trends 6` | Centres d'intérêt, jours d'historique, nombre de tendances |
+| `search set widget_area\|widget_style\|widget_font\|widget_interactive` | Réglages du widget de bureau (voir plus bas) |
 | `search exclude add <mot>` | Masque un sujet (aussi `remove`, `list`, `clear`) |
 | `search history` / `search preview` | Centres d'intérêt détectés / aperçu des tendances perso |
 | `search mousetest` | Diagnostic de la souris (survol et clics) |
@@ -170,20 +185,36 @@ search widget               # lance le widget
 search widget stop          # l'arrête
 ```
 
-Le mode widget (`search --widget`) affiche le globe seul, en mode économie, sans barre de recherche : les clics sur le globe et les tendances fonctionnent si la fenêtre reçoit la souris.
+Le widget est **grand, sombre et lumineux** pour ne pas se perdre dans le fond d'écran, et il est **interactif** : la barre de recherche, le panneau de paramètres (`/`, `F2` ou clic sur ⚙) et les clics fonctionnent comme dans le terminal. `Échap` ne le ferme pas (utilise `/quit` ou `search widget stop`).
 
-**Méthodes automatiques** (terminal conseillé : [kitty](https://sw.kovidgoyal.net/kitty/)) :
+| Réglage | Commande | Valeurs |
+|---|---|---|
+| Taille (pixels, toujours bornée à l'écran) | `search set widget_area 1920x1080` | `auto` (écran moins une marge), ou `LARGEURxHAUTEUR` |
+| Fond | `search set widget_style glass` | `glass` (verre sombre, défaut), `clear` (transparent), `solid` |
+| Taille de police | `search set widget_font 17` | `auto` ou 6 à 72 pt |
+| Barre de recherche et paramètres | `search set widget_interactive on` | `on` (défaut) ou `off` (globe seul) |
 
-| Session | Méthode |
+Les mêmes options existent pour un lancement ponctuel : `search widget restart --area 1080x1920 --style clear --font 20`. Un écran en portrait (1080×1920) est géré : la police s'adapte pour garder assez de colonnes.
+
+**Un seul widget à la fois** : `search widget` refuse de lancer un doublon (`search widget restart` pour le relancer). Le widget utilise sa **propre config kitty** (`~/.config/search-globe/kitty-widget.conf`), sans toucher à ton `kitty.conf`.
+
+**Clavier** : une fenêtre de type « bureau » peut ne pas recevoir le clavier selon le bureau. Si la saisie ne répond pas, lance `search widget restart --focusable` (la fenêtre reste sous les autres mais peut prendre le focus).
+
+**Méthodes automatiques** (terminal conseillé : [kitty](https://sw.kovidgoyal.net/kitty/)). Si la première méthode échoue, la suivante est essayée automatiquement :
+
+| Session | Méthodes, dans l'ordre |
 |---|---|
-| Wayland (Hyprland, Sway, KDE Plasma 6…) | `kitten panel --edge=background` : couche « fond d'écran » (protocole layer-shell) |
-| X11 (KDE, XFCE, i3…) | kitty ou alacritty transparent, puis `wmctrl` place la fenêtre sous les autres sur tous les bureaux (`sudo pacman -S xdotool wmctrl`) |
-| GNOME sur Wayland | Non géré (pas de layer-shell) |
+| Wayland avec layer-shell (Hyprland, Sway, KDE Plasma 6…) | 1. `kitten panel --edge=background` (couche « fond d'écran »)  2. XWayland (voir ci-dessous) |
+| **GNOME sur Wayland** | **XWayland** : GNOME n'a pas de layer-shell, donc kitty tourne en fenêtre X11 transparente, puis `xprop` lui donne le type « bureau » et `wmctrl` la place sous les autres sur tous les bureaux |
+| X11 (KDE, XFCE, i3…) | kitty ou alacritty transparent, puis `xprop` + `wmctrl` comme ci-dessus |
 
-> ⚠️ Cette partie n'a pas pu être testée sur un vrai bureau (seulement avec de faux programmes) : les options de kitty peuvent varier selon la version. `search widget --dry-run` te montre la commande exacte pour la corriger si besoin.
+Outils pour les méthodes X11 / XWayland : `sudo pacman -S kitty xdotool wmctrl xorg-xprop`.
+
+> ⚠️ Cette partie n'a pu être testée qu'avec de faux programmes, pas sur un vrai bureau : les options de kitty varient selon la version, et la méthode XWayland de GNOME est **expérimentale**. `search widget --dry-run` te montre les commandes exactes pour les corriger si besoin. GNOME n'offre aucun moyen officiel de placer une fenêtre sous les autres : si le globe reste au-dessus de tes fenêtres, c'est la limite du bureau, pas du projet.
 
 **Règles de fenêtre manuelles** (classe de la fenêtre : `search-globe-widget`) :
 
+- **GNOME** : aucune règle de fenêtre native. Essaie la méthode XWayland ci-dessus, ou passe à une session X11 (« GNOME sur Xorg ») si ton système la propose.
 - **KDE Plasma** : Paramètres → Gestion des fenêtres → Règles de fenêtre → Ajouter. Classe `search-globe-widget`, puis forcer « Garder en dessous », « Ignorer la barre des tâches », « Ignorer le sélecteur de pages », « Pas de barre de titre ni de cadre », « Bureau : tous ».
 - **Hyprland** :
   ```
@@ -210,7 +241,8 @@ Le mode widget (`search --widget`) affiche le globe seul, en mode économie, san
 - **« Terminal trop petit »** : agrandis la fenêtre (minimum 64×16).
 - **Tendances indisponibles** : le flux Google Trends n'a pas répondu, réessaie plus tard (ou vérifie que le mode hors-ligne est désactivé).
 - **Mode perso sans actus** : c'est le consentement (`/consent`). Pour voir ce qui est détecté : `search history`.
-- **Widget qui ne démarre pas** : `search widget --dry-run`, puis la section « Widget de bureau ».
+- **Widget qui ne démarre pas** : `search widget --dry-run`, puis la section « Widget de bureau ». Au démarrage de session, ce que le widget affiche est noté dans `~/.local/state/search-globe/autostart.log` (et la sortie du terminal dans `widget.log`).
+- **Un éditeur (nano) s'ouvre à chaque démarrage** : search-globe ne lance jamais d'éditeur. Pour trouver qui le lance, juste après la connexion : `ps -eo pid,ppid,etime,cmd | grep -E "[n]ano"` (le chemin du fichier ouvert et le processus parent indiquent l'origine), et `ls ~/.config/autostart/`.
 
 ## Crédits
 
