@@ -895,6 +895,31 @@ _add("ap_o_focus", "ne pas donner le type « bureau » à la fenêtre (si le cla
      "не задавать окну тип «рабочий стол» (если клавиатура не отвечает)",
      "non dare alla finestra il tipo «desktop» (se la tastiera non risponde)",
      "não dar à janela o tipo «desktop» (se o teclado não responder)")
+_add("wid_mon", "Écran : {n} ({i}/{c}) · {w}×{h} · changer : search set widget_monitor 1…{c}",
+     "Monitor: {n} ({i}/{c}) · {w}×{h} · change: search set widget_monitor 1…{c}",
+     "Pantalla: {n} ({i}/{c}) · {w}×{h} · cambiar: search set widget_monitor 1…{c}",
+     "Monitor: {n} ({i}/{c}) · {w}×{h} · ändern: search set widget_monitor 1…{c}",
+     "Монитор: {n} ({i}/{c}) · {w}×{h} · сменить: search set widget_monitor 1…{c}",
+     "Monitor: {n} ({i}/{c}) · {w}×{h} · cambia: search set widget_monitor 1…{c}",
+     "Monitor: {n} ({i}/{c}) · {w}×{h} · mudar: search set widget_monitor 1…{c}")
+_add("ap_o_monitor", "écran du widget : primary, 1, 2… ou nom (xrandr)",
+     "widget monitor: primary, 1, 2… or name (xrandr)",
+     "pantalla del widget: primary, 1, 2… o nombre (xrandr)",
+     "Monitor des Widgets: primary, 1, 2… oder Name (xrandr)",
+     "монитор виджета: primary, 1, 2… или имя (xrandr)",
+     "monitor del widget: primary, 1, 2… o nome (xrandr)",
+     "monitor do widget: primary, 1, 2… ou nome (xrandr)")
+_add("ap_o_pos", "position sur l'écran : right, left, center", "position on the screen: right, left, center",
+     "posición en la pantalla: right, left, center", "Position auf dem Bildschirm: right, left, center",
+     "позиция на экране: right, left, center", "posizione sullo schermo: right, left, center",
+     "posição na tela: right, left, center")
+_add("ap_o_layout", "interface : card (carte compacte) ou classic (comme le terminal)",
+     "interface: card (compact card) or classic (like the terminal)",
+     "interfaz: card (tarjeta compacta) o classic (como la terminal)",
+     "Oberfläche: card (kompakte Karte) oder classic (wie das Terminal)",
+     "интерфейс: card (компактная карточка) или classic (как в терминале)",
+     "interfaccia: card (scheda compatta) o classic (come il terminale)",
+     "interface: card (cartão compacto) ou classic (como o terminal)")
 _add("wid_stopped", "✔ {n} widget(s) arrêté(s).", "✔ {n} widget(s) stopped.",
      "✔ {n} widget(s) detenido(s).", "✔ {n} Widget(s) beendet.", "✔ Остановлено виджетов: {n}.",
      "✔ {n} widget fermato/i.", "✔ {n} widget(s) parado(s).")
@@ -1119,11 +1144,14 @@ def build_world(cells):
 MODES = ("base", "perso", "mix")
 BROWSER_NAMES = ("firefox", "librewolf", "zen", "floorp", "brave", "vivaldi",
                  "edge", "opera", "chromium", "chrome")
+CFG_VERSION = 3          # version des réglages (sert à migrer les anciens fichiers)
 DEFAULTS = {"mode": "base", "geo": "FR", "engine": "google", "browser": "auto",
             "history_days": 60, "max_trends": 8, "topics": 3, "lang": "auto",
             "theme": "cyan", "perf": "auto", "consent": False, "consent_date": "",
-            "offline": False, "widget_area": "auto", "widget_style": "glass",
-            "widget_font": "auto", "widget_interactive": True, "exclude": []}
+            "offline": False, "widget_area": "auto", "widget_style": "clear",
+            "widget_font": "auto", "widget_interactive": True, "widget_layout": "classic",
+            "widget_monitor": "primary", "widget_pos": "right", "cfg_version": CFG_VERSION,
+            "exclude": []}
 CONFIG_PATH = (Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
                / "search-globe" / "config.json")
 def mode_text(m):
@@ -1156,11 +1184,17 @@ def sanitize(cfg):
     cfg["consent_date"] = str(cfg.get("consent_date", ""))[:10] if cfg["consent"] else ""
     wa = str(cfg.get("widget_area", "auto")).strip().lower()
     cfg["widget_area"] = wa if wa == "auto" or re.fullmatch(r"\d{3,5}x\d{3,5}", wa) else "auto"
-    ws = str(cfg.get("widget_style", "glass")).strip().lower()
-    cfg["widget_style"] = ws if ws in WIDGET_STYLES else "glass"
+    ws = str(cfg.get("widget_style", "clear")).strip().lower()
+    cfg["widget_style"] = ws if ws in WIDGET_STYLES else "clear"
     wf = str(cfg.get("widget_font", "auto")).strip().lower()
     cfg["widget_font"] = wf if wf == "auto" or (wf.isdigit() and 6 <= int(wf) <= 72) else "auto"
     cfg["widget_interactive"] = cfg.get("widget_interactive", True) is not False
+    wl = str(cfg.get("widget_layout", "classic")).strip().lower()
+    cfg["widget_layout"] = wl if wl in ("card", "classic") else "classic"
+    wm = str(cfg.get("widget_monitor", "primary")).strip()
+    cfg["widget_monitor"] = wm if re.fullmatch(r"[\w.:-]{1,40}", wm) else "primary"
+    wp = str(cfg.get("widget_pos", "right")).strip().lower()
+    cfg["widget_pos"] = wp if wp in ("right", "left", "center") else "right"
     ex = cfg.get("exclude", [])
     cfg["exclude"] = (sorted({str(x).strip().lower() for x in ex if str(x).strip()})
                       if isinstance(ex, list) else [])
@@ -1169,15 +1203,27 @@ def sanitize(cfg):
 
 def load_config():
     cfg = {k: (list(v) if isinstance(v, list) else v) for k, v in DEFAULTS.items()}
-    existed = CONFIG_PATH.exists()
+    existed, migrated = CONFIG_PATH.exists(), False
     if existed:
         try:
             data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
             if isinstance(data, dict):
+                if int(data.get("cfg_version", 0) or 0) < CFG_VERSION:
+                    for k in ("widget_layout", "widget_style", "widget_area",   # nouveaux défauts
+                              "widget_pos", "widget_font"):
+                        data.pop(k, None)
+                    data["cfg_version"] = CFG_VERSION
+                    migrated = True
                 cfg.update({k: data[k] for k in DEFAULTS if k in data})
         except Exception:
             pass
-    return sanitize(cfg), existed
+    cfg = sanitize(cfg)
+    if migrated:
+        try:
+            save_config(cfg)
+        except OSError:
+            pass
+    return cfg, existed
 
 
 def save_config(cfg):
@@ -1315,7 +1361,12 @@ STOP = set("""le la les un une des du de d l et ou à a au aux en dans sur pour 
  online new quick easy fast simple""".split())
 NOISE = set("""trailer gameplay soluce wiki gratuit gratuitement prix avis test date sortie
  télécharger telecharger download streaming vf vostfr pdf review guide meilleur meilleurs
- meilleure top liste tuto tutoriel installer install config""".split())
+ meilleure top liste tuto tutoriel installer install config
+ mettre mets ajouter ajoute faire fait utiliser creer créer avoir être peut peux pouvoir savoir
+ trouver changer modifier activer desactiver désactiver enlever supprimer afficher ouvrir fermer
+ lancer image images photo photos video vidéo videos add make use create change set enable
+ disable remove delete show open close start fix get poner añadir hacer instalar usar machen
+ hinzufügen installieren nutzen fare aggiungere installare usare fazer adicionar""".split())
 GEO_LANG = {"FR": "fr", "BE": "fr", "CH": "fr", "LU": "fr", "CA": "en", "US": "en", "GB": "en",
             "AU": "en", "IE": "en", "DE": "de", "AT": "de", "ES": "es", "MX": "es", "AR": "es",
             "IT": "it", "PT": "pt", "BR": "pt", "NL": "nl", "PL": "pl", "JP": "ja"}
@@ -1724,7 +1775,12 @@ THEME_BASIC = {"cyan": "COLOR_CYAN", "violet": "COLOR_MAGENTA", "matrix": "COLOR
                "amber": "COLOR_YELLOW", "rose": "COLOR_RED", "mono": "COLOR_WHITE"}
 
 
-def init_colors(theme="cyan"):
+CARD_BG = {"cyan": 17, "violet": 53, "matrix": 22, "amber": 58, "rose": 52, "mono": 235}
+CARD_HEX = "#0a0e17"
+
+
+def init_colors(theme="cyan", bg=None):
+    """bg=None : fond du terminal (transparent possible) ; sinon fond uni (carte opaque)."""
     curses.start_color()
     try:
         curses.use_default_colors()
@@ -1736,13 +1792,16 @@ def init_colors(theme="cyan"):
         main = getattr(curses, THEME_BASIC.get(theme, "COLOR_CYAN"))
         white = curses.COLOR_WHITE
         spec = {1: main, 2: main, 3: main, 4: main, 5: main, 6: white, 7: white, 8: main}
+    back = -1 if bg is None else bg
     for n, c in spec.items():
-        curses.init_pair(n, c, -1)
+        curses.init_pair(n, c, back)
     A = {0: 0}
     for n in spec:
         A[n] = curses.color_pair(n)
     A[5] |= curses.A_BOLD
     A[6] |= curses.A_BOLD
+    curses.init_pair(9, -1, back)               # fond uni (peint par scr.bkgd)
+    A[9] = curses.color_pair(9)
     return A
 
 
@@ -1843,6 +1902,10 @@ class App:
         self.minimal = bool(splash or (widget and not cfg.get("widget_interactive", True)))
         self.ft, self.slow = None, 0
         self.eco = False
+        # interface « carte » du widget : fond opaque, légende des tendances, champ de recherche
+        self.card = bool(widget and not self.minimal and cfg.get("widget_layout", "classic") == "card")
+        self.lab_h = 0 if self.card else 1           # hauteur (-1) d'une étiquette cliquable
+        self.card_hits, self.card_hover, self.card_cursor, self.scr = [], -1, None, None
         self.geo = cfg["geo"]
         self.home_url, self.query_url = ENGINES[cfg["engine"]]
         self.zoom = 1.0
@@ -1917,6 +1980,8 @@ class App:
                 pass
         if key == "theme":
             self.A = self.make_colors()
+            if self.card and self.scr is not None:
+                self.scr.bkgd(" ", self.A[9])
         if key == "perf":
             self.eco = self.want_eco()
         tr = self.trends
@@ -2186,6 +2251,82 @@ class App:
             bubble(" ".join("●" if j == ph else "○" for j in range(3)), "bot")
         return rows
 
+    def draw_card(self, scr, now, rows, cols, gy0, gh, nL, items, marks, cx, cy):
+        """Interface « carte » du widget : cadre, état, globe, légende cliquable, recherche, puces."""
+        A = self.A
+        mcx, mcy = self.mouse if self.mouse else (-1, -1)
+        put(scr, 0, 0, "╭" + "─" * (cols - 2) + "╮", A[5])
+        for y in range(1, rows - 1):
+            put(scr, y, 0, "│", A[4])
+            put(scr, y, cols - 1, "│", A[4])
+        put(scr, rows - 1, 0, "╰" + "─" * (cols - 2) + "╯", A[5])
+        put(scr, 0, 2, " ◉ SEARCH · GLOBE ", A[6])
+        gx = cols - 5                                        # bouton ⚙ sur le cadre
+        hot = mcy == 0 and gx <= mcx <= gx + 1
+        put(scr, 0, gx, "⚙", A[6] if (hot or self.chat) else A[7])
+        self.gear = (gx, 0)
+        clock = time.strftime("%H:%M")
+        put(scr, 1, cols - 2 - len(clock), clock, A[5])
+        if items:
+            stat = self.trends.header()
+        else:
+            stat = f"{'⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'[int(now * 10) % 10]} {tx(self.trends.status)}"
+        put(scr, 1, 2, fit(stat, cols - 6 - len(clock)), A[7])
+        put(scr, 2, 1, "─" * (cols - 2), A[1])
+        for k, (px, py) in marks.items():                    # numéros des marqueurs sur le globe
+            col, row = int(px // 2) + 1, int(py // 4)
+            if gy0 <= row < gy0 + gh and 1 <= col < cols - 3:
+                put(scr, row, col, str(k + 1), A[6])
+        # --- légende des tendances (cliquable)
+        labels = []
+        y0 = rows - 6 - nL
+        for k in range(nL):
+            name, detail, kind, target = items[k]
+            row = y0 + k
+            txt = fit(f"{k + 1:02d}{GLYPH.get(kind, '▸')} {name}", cols - 5)
+            wd = cwidth(txt)
+            hover = mcy == row and 2 <= mcx < 2 + wd
+            if hover:
+                self.card_hover = k
+            hot_ = hover or self.flash.get(k, 0) > now
+            put(scr, row, 2, txt, (A[6] | curses.A_UNDERLINE) if hot_ else A[8])
+            rest = cols - 5 - wd - 2
+            if rest > 8 and detail:
+                put(scr, row, 2 + wd + 2, fit(detail, rest), A[7])
+            px, py = marks.get(k, (cx, cy))
+            labels.append((2, 2 + wd, row, target or name, px, py, k))
+        # --- champ de recherche
+        by, bw = rows - 5, cols - 6
+        top = list("╭" + "─" * (bw - 2) + "╮")
+        p = int((now * 28) % bw)
+        for q in range(max(1, p), min(bw - 1, p + 8)):
+            top[q] = "━"
+        put(scr, by, 3, "".join(top), A[5])
+        put(scr, by + 1, 3, "│", A[5])
+        put(scr, by + 1, 3 + bw - 1, "│", A[5])
+        put(scr, by + 2, 3, "╰" + "─" * (bw - 2) + "╯", A[4])
+        put(scr, by + 1, 5, "❯", A[6])
+        inner = bw - 6
+        text = "".join(self.buf)
+        scroll = max(0, self.pos - inner + 1)
+        if text:
+            put(scr, by + 1, 7, text[scroll:scroll + inner], A[8])
+        else:
+            put(scr, by + 1, 7, fit(tx("placeholder"), inner), A[7])
+        cursor = (by + 1, 7 + self.pos - scroll)
+        # --- puces de paramètres (clic = ouvre le chat et lance la commande)
+        self.card_hits = []
+        cxp = 3
+        for cmd in ("/help", "/mode", "/lang", "/theme", "/config"):
+            label = f" {cmd} "
+            if cxp + len(label) > cols - 3:
+                break
+            hot = mcy == rows - 2 and cxp <= mcx < cxp + len(label)
+            put(scr, rows - 2, cxp, label, (A[6] if hot else A[4]) | curses.A_REVERSE)
+            self.card_hits.append((cxp, cxp + len(label), rows - 2, cmd))
+            cxp += len(label) + 1
+        return cursor, labels
+
     def draw_chat(self, scr, now, x0, cols, rows):
         A = self.A
         w = cols - x0
@@ -2264,7 +2405,11 @@ class App:
             self.search(target, now)
 
     def make_colors(self):
-        A = init_colors(self.cfg.get("theme", "cyan"))
+        theme = self.cfg.get("theme", "cyan")
+        bg = None
+        if self.card:
+            bg = CARD_BG.get(theme, 17) if getattr(curses, "COLORS", 8) >= 256 else curses.COLOR_BLACK
+        A = init_colors(theme, bg)
         if self.widget:                              # plus de contraste sur le fond d'écran
             for lv in (2, 3, 4):
                 A[lv] |= curses.A_BOLD
@@ -2276,7 +2421,7 @@ class App:
             return True
         if p == "off":
             return False
-        return self.widget or bool(os.environ.get("SSH_CONNECTION"))
+        return bool(os.environ.get("SSH_CONNECTION"))          # le widget garde tous les détails
 
     def watch_perf(self, spent, now):
         """Mode auto : passe en économie si les images mettent trop longtemps à se dessiner."""
@@ -2306,6 +2451,12 @@ class App:
         if self.splash:
             self.want_quit = True
             return
+        if self.card and self.chat_p == 0:
+            for x0, x1, y, cmd in self.card_hits:
+                if y == my and x0 <= mx < x1:
+                    self.chat_open(now)
+                    self.chat_submit(cmd, now)
+                    return
         if self.chat_p > 0.5:
             for x0, x1, y, cmd in self.chat_hits:
                 if y == my and x0 <= mx < x1:
@@ -2318,7 +2469,7 @@ class App:
         if not g:
             return
         for c0, c1, row, q, ex, ey, k in g["labels"]:
-            if c0 <= mx < c1 and row <= my <= row + 1:
+            if c0 <= mx < c1 and row <= my <= row + self.lab_h:
                 self.flash[k] = now + 0.5
                 self.ripples.append([ex, ey, now])
                 self.activate(q, now)
@@ -2408,16 +2559,16 @@ class App:
     def frame(self, scr, now, t, dt):
         A = self.A
         rows, cols = scr.getmaxyx()
-        eco = self.eco
+        eco, card = self.eco, self.card
         if eco:
             t += 10.0                                     # pas d'intro ni d'effets progressifs
-        ch, cw = rows - (0 if self.minimal else 4), cols
+        ch, cw = rows - (0 if (self.minimal or card) else 4), cols
         scr.erase()
         tgt_p = 1.0 if self.chat else 0.0                 # animation du panneau de chat
         self.chat_p += (tgt_p - self.chat_p) * (1.0 if eco else min(1.0, dt * 9))
         if abs(tgt_p - self.chat_p) < 0.004:
             self.chat_p = tgt_p
-        pw = min(64, max(40, int(cols * 0.44))) if cols >= 100 else cols
+        pw = min(64, max(40, int(cols * 0.44))) if (cols >= 100 and not card) else cols
         left_cols = cols - int(pw * self.chat_p)          # largeur de la zone du globe
         H, W = ch * 4, cw * 2
         cx, cy = float(left_cols), H / 2.0
@@ -2425,7 +2576,17 @@ class App:
         lab = 1.0 - self.chat_p
         r0 = min((H / 2 - 8) / (1.18 if eco else 1.25), left_cols - side * 2 * lab - 8,
                  400 if self.widget else 115)
-        if ch < 12 or cols < 50 or (self.chat_p == 0 and (cols < 64 or r0 < 20)):
+        items_pre = self.trends.items[:MAX_TRENDS]
+        gy0, gh, nL = 0, ch, 0
+        if card:                                          # globe au centre de la carte
+            nL = min(len(items_pre), 6, max(0, rows - 24))
+            gy0, gh = 3, rows - 10 - nL
+            cy = (gy0 + gh / 2.0) * 4
+            r0 = min((gh * 2 - 7) / 1.15, left_cols - 5, 400)
+        small = ch < 12 or cols < 50 or (self.chat_p == 0 and (cols < 64 or r0 < 20))
+        if card:
+            small = rows < 22 or cols < 38 or gh < 8
+        if small:
             put(scr, 0, 0, tx("too_small"), A[6])
             self.geom = None
             return
@@ -2447,7 +2608,7 @@ class App:
             hover_globe = mcy < ch and (mxd - cx) ** 2 + (myd - cy) ** 2 <= rh * rh
             if self.geom:
                 for c0_, c1_, row_, _q, _x, _y, k_ in self.geom["labels"]:
-                    if c0_ <= mcx < c1_ and row_ <= mcy <= row_ + 1:
+                    if c0_ <= mcx < c1_ and row_ <= mcy <= row_ + self.lab_h:
                         hov_prev = k_
         ztarget = 1.10 if hover_globe else (1.06 if hov_prev >= 0 else 1.0)
         self.zoom += (ztarget - self.zoom) * (1.0 if eco else min(1.0, dt * 9))
@@ -2541,7 +2702,7 @@ class App:
         # --- tendances : marqueurs sur le globe + étiquettes en orbite ---
         items = self.trends.items[:MAX_TRENDS]
         n = len(items)
-        labels, cand = [], []
+        labels, cand, marks = [], [], {}
         if n:
             cv = w.city[:n]
             mx1 = cv[:, 0] * ca + cv[:, 2] * sa
@@ -2553,6 +2714,7 @@ class App:
                 on_front = mz2[k] > 0.10 and s > 0.95 and t > 1.2 + 0.1 * k
                 hot = self.flash.get(k, 0) > now
                 if on_front:
+                    marks[k] = (pxm, pym)
                     big = k == hov_prev
                     pulse = 3 + 2 * (0.5 + 0.5 * math.sin(t * 3 + k)) + (3 if big else 0)
                     cxs, cys = circle(pxm, pym, pulse, 0.8)
@@ -2560,7 +2722,7 @@ class App:
                     block(lev, pxm, pym, 6, 2 if big else 1)
                 vx = pxm - cx
                 want = (on_front and abs(vx) > 0.32 * r and t > 1.5 + 0.15 * k
-                        and self.chat_p < 0.02)
+                        and self.chat_p < 0.02 and not card)
                 step = dt * (2.5 if want else 4.0)
                 tgt = 1.0 if want else 0.0
                 self.vis[k] += max(-step, min(step, tgt - self.vis[k]))
@@ -2644,7 +2806,8 @@ class App:
                 mask |= (v4[:, rr, :, cc] > 0).astype(np.uint16) * BIT[rr][cc]
         level = v4.max(axis=(1, 3))
         ml, ll = mask.tolist(), level.tolist()
-        for j in range(ch):
+        row_lo, row_hi = (gy0, gy0 + gh) if card else (0, ch)
+        for j in range(row_lo, row_hi):
             mrow, lrow = ml[j], ll[j]
             i = 0
             while i < left_cols:
@@ -2675,7 +2838,12 @@ class App:
 
         # --- HUD ---
         self.gear = None
-        if left_cols >= 30 and not self.minimal:
+        self.card_hover, self.card_cursor = -1, None
+        if card and self.chat_p == 0:
+            self.card_cursor, clabels = self.draw_card(scr, now, rows, cols, gy0, gh, nL,
+                                                       items, marks, cx, cy)
+            self.geom["labels"] = clabels
+        if left_cols >= 30 and not self.minimal and not card:
             title = "◢ SEARCH // GLOBE"
             put(scr, 0, 1, title[: int(t * 24)], A[5])
             if items:
@@ -2699,7 +2867,7 @@ class App:
         rev = ease_out(max(0.0, min(1.0, (t - 1.0) / 0.8)))
         wv = int(bw * rev)
         cursor = None
-        if wv >= 6 and self.chat_p == 0 and not self.minimal:
+        if wv >= 6 and self.chat_p == 0 and not self.minimal and not card:
             x0 = bx + (bw - wv) // 2
             top = list("╭" + "─" * (wv - 2) + "╮")
             p = int((t * 28) % wv)
@@ -2741,16 +2909,25 @@ class App:
                 it_ = items[c['k']]
                 hint = tx("hover_article") if it_[3] else tx("hover_search", q=it_[0])
                 hattr = A[6]
+        if self.card and self.card_hover >= 0:
+            it_ = items[self.card_hover]
+            hint = tx("hover_article") if it_[3] else tx("hover_search", q=it_[0])
+            hattr = A[6]
         if self.chat_p > 0.5:
             hint, hattr = tx("hint_chat"), A[7]
         if now < self.msg_until:
             hint, hattr = self.msg, A[6]
         hw = cols if left_cols < 40 else left_cols
-        if not self.minimal:
+        if card:
+            if self.chat_p == 0:
+                put(scr, rows - 6, max(1, (cols - cwidth(hint)) // 2), fit(hint, cols - 3), hattr)
+        elif not self.minimal:
             put(scr, rows - 1, max(0, (hw - cwidth(hint)) // 2), fit(hint, hw - 1), hattr)
 
         if self.chat_p > 0.01:
             cursor = self.draw_chat(scr, now, left_cols, cols, rows)
+        elif card:
+            cursor = self.card_cursor
         if cursor:
             try:
                 scr.move(*cursor)
@@ -2763,7 +2940,10 @@ class App:
         curses.mouseinterval(0)
         mouse_motion(True)                            # active le survol
         scr.keypad(True)
+        self.scr = scr
         self.A = self.make_colors()
+        if self.card:
+            scr.bkgd(" ", self.A[9])                 # peint toute la carte (fond opaque)
         self.t0 = self.last = time.monotonic()
         self.trends.refresh()
         try:
@@ -2856,6 +3036,17 @@ def apply_setting(cfg, key, raw):
                 if not (v.isdigit() and 6 <= int(v) <= 72):
                     raise ValueError(tx("err_range", lo=6, hi=72))
                 v = str(int(v))
+        elif key == "widget_layout":
+            v = v.lower()
+            if v not in ("card", "classic"):
+                raise ValueError(tx("err_engine", l="card, classic"))
+        elif key == "widget_monitor":
+            if not re.fullmatch(r"[\w.:-]{1,40}", v):
+                raise ValueError(tx("err_engine", l="primary, 1, 2…"))
+        elif key == "widget_pos":
+            v = v.lower()
+            if v not in ("right", "left", "center"):
+                raise ValueError(tx("err_engine", l="right, left, center"))
         elif key == "widget_interactive":
             lv = v.lower()
             if lv in ("on", "true", "1") or lv in YES_WORDS:
@@ -3012,31 +3203,76 @@ def screen_size():
     return 1920, 1080
 
 
-def widget_geometry(cfg, area=None, font=None):
-    """Zone du widget en pixels, toujours contenue dans l'écran."""
-    sw, sh = screen_size()
+def monitors():
+    """Écrans détectés (xrandr) : [{name, primary, w, h, x, y}]."""
+    out = []
+    if shutil.which("xrandr"):
+        try:
+            txt = subprocess.run(["xrandr", "--query"], capture_output=True, text=True,
+                                 timeout=3).stdout
+        except Exception:
+            txt = ""
+        for m in re.finditer(r"^(\S+) connected( primary)? (\d+)x(\d+)\+(\d+)\+(\d+)", txt, re.M):
+            out.append(dict(name=m.group(1), primary=bool(m.group(2)), w=int(m.group(3)),
+                            h=int(m.group(4)), x=int(m.group(5)), y=int(m.group(6))))
+    if not out:
+        sw, sh = screen_size()
+        out = [dict(name="screen", primary=True, w=sw, h=sh, x=0, y=0)]
+    return out
+
+
+def pick_monitor(mons, want):
+    want = str(want).strip().lower()
+    if want.isdigit() and 1 <= int(want) <= len(mons):
+        return mons[int(want) - 1]
+    for m in mons:
+        if m["name"].lower() == want:
+            return m
+    for m in mons:
+        if m["primary"]:
+            return m
+    return mons[0]
+
+
+def widget_geometry(cfg, area=None, font=None, monitor=None, layout=None, pos=None):
+    """Zone du widget en pixels, sur UN écran, toujours contenue dans cet écran."""
+    mons = monitors()
+    mon = pick_monitor(mons, monitor or cfg.get("widget_monitor", "primary"))
+    layout = layout or cfg.get("widget_layout", "classic")
     area = (area or cfg.get("widget_area", "auto")).lower()
     if area == "auto":
-        w, h = max(640, sw - 80), max(480, sh - 110)      # grand, sans cacher la barre du haut
+        if layout == "card":                                # carte compacte : ne sature pas l'écran
+            w, h = min(760, int(mon["w"] * 0.40)), min(940, mon["h"] - 140)
+        else:
+            w, h = min(1100, int(mon["w"] * 0.60)), min(800, mon["h"] - 200)   # ~1100x800 sur 1920x1080
     else:
         w, h = (int(x) for x in area.split("x"))
-    w, h = min(w, sw), min(h, sh)                          # jamais plus grand que l'écran
-    x, y = (sw - w) // 2, max(40, (sh - h) // 2 + 20)
+    w, h = min(w, mon["w"]), min(h, mon["h"])               # jamais plus grand que l'écran
+    pos = pos or cfg.get("widget_pos", "right")
+    margin = 40
+    x = {"left": mon["x"] + margin,
+         "center": mon["x"] + (mon["w"] - w) // 2}.get(pos, mon["x"] + mon["w"] - w - margin)
+    x = max(mon["x"], min(x, mon["x"] + mon["w"] - w))
+    y = mon["y"] + max(50, (mon["h"] - h) // 2)
     f = str(font or cfg.get("widget_font", "auto"))
-    # police : assez petite pour garder ~100 colonnes (écran étroit ou portrait), sinon h/58
-    f = max(8, min(round(h / 58), round(w / 80))) if f == "auto" else int(f)
-    return dict(w=w, h=h, x=x, y=y, font=f, sw=sw, sh=sh)
+    if f == "auto":
+        f = (max(8, min(round(h / 56), round(w / 56))) if layout == "card"
+             else max(8, min(round(h / 58), round(w / 80))))
+    else:
+        f = int(f)
+    return dict(w=w, h=h, x=x, y=y, font=f, sw=mon["w"], sh=mon["h"], layout=layout,
+                mon_name=mon["name"], mon_idx=mons.index(mon) + 1, mon_count=len(mons))
 
 
 def write_kitty_conf(geom, style):
     """Config kitty DÉDIÉE au widget : indépendante de ton kitty.conf."""
-    op, bg = WIDGET_STYLES[style]
+    op, bg = (1.0, CARD_HEX) if geom["layout"] == "card" else WIDGET_STYLES[style]
     lines = [f"font_size {geom['font']}", "window_padding_width 0", "hide_window_decorations yes",
              f"background_opacity {op}", f"background {bg}", "confirm_os_window_close 0",
              "enable_audio_bell no", "cursor_blink_interval 0", "remember_window_size no",
              f"initial_window_width {geom['w']}", f"initial_window_height {geom['h']}",
              "shell_integration disabled", "update_check_interval 0", "allow_remote_control no",
-             "close_on_child_death yes"]
+             "close_on_child_death yes", "shell /bin/sh"]   # jamais ton shell/config.fish ici
     path = CONFIG_PATH.parent / "kitty-widget.conf"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -3051,7 +3287,7 @@ def widget_plans(term, geom, style):
     want_kitty = term in ("auto", "kitty") and kitty
     want_ala = term in ("auto", "alacritty") and alacritty
     conf = str(write_kitty_conf(geom, style)) if want_kitty else ""
-    op, bg = WIDGET_STYLES[style]
+    op, bg = (1.0, CARD_HEX) if geom["layout"] == "card" else WIDGET_STYLES[style]
     px = geom["font"] * 4 / 3                              # points -> pixels (96 ppp)
     cols, rows = int(geom["w"] / (px * 0.6)), int(geom["h"] / (px * 1.25))
     ala = ["--class", WIDGET_CLASS, "-o", f"window.opacity={op}",
@@ -3061,11 +3297,11 @@ def widget_plans(term, geom, style):
     plans = []
     if sess == "wayland":
         if want_kitty and not any(w in desk.lower() for w in NO_LAYER_SHELL):
-            kitten = shutil.which("kitten")                 # couche « fond d'écran » (layer-shell)
+            kitten = shutil.which("kitten")             # couche « fond d'écran » (layer-shell)
             base = [kitten] if kitten else [kitty, "+kitten"]
             plans.append(("kitty-panel", base + ["panel", "--edge=background", f"--config={conf}",
                                                   f"--class={WIDGET_CLASS}"] + inner))
-        if os.environ.get("DISPLAY"):                       # XWayland : fenêtre X11 sous Wayland
+        if os.environ.get("DISPLAY"):                   # XWayland : fenêtre X11 sous Wayland
             if want_kitty:
                 plans.append(("xwayland-kitty", [kitty, "--config", conf, "--class", WIDGET_CLASS,
                                                  "-o", "linux_display_server=x11"] + inner))
@@ -3145,20 +3381,27 @@ def cmd_widget(args, cfg):
         # lancé sans terminal (démarrage de session) : tout est journalisé
         WIDGET_LOG.parent.mkdir(parents=True, exist_ok=True)
         sys.stdout = sys.stderr = (WIDGET_LOG.parent / "autostart.log").open("a", buffering=1)
-        print(time.strftime("--- %Y-%m-%d %H:%M:%S"))
+        try:
+            with open(f"/proc/{os.getppid()}/cmdline", "rb") as f:
+                parent = f.read().replace(b"\0", b" ").decode(errors="ignore").strip()
+        except OSError:
+            parent = "?"
+        print(time.strftime("--- %Y-%m-%d %H:%M:%S"), f"| parent: {parent!r} | argv: {sys.argv!r}")
     if args.action in ("stop", "restart"):
         n = stop_widgets()
         print(tx("wid_stopped", n=n) if n else tx("wid_nothing"))
         if args.action == "stop":
             return
         time.sleep(0.8)
-    style = args.style or cfg.get("widget_style", "glass")
-    geom = widget_geometry(cfg, args.area, args.font)
+    style = args.style or cfg.get("widget_style", "clear")
+    geom = widget_geometry(cfg, args.area, args.font, args.monitor, args.layout, args.pos)
     plans = widget_plans(args.terminal, geom, style)
     sess, desk = session_info()
     print(tx("wid_env", s=sess or "?", d=desk, m=" → ".join(m for m, _ in plans) or "-"))
+    print(tx("wid_mon", n=geom["mon_name"], i=geom["mon_idx"], c=geom["mon_count"],
+             w=geom["sw"], h=geom["sh"]))
     print(tx("wid_info", w=geom["w"], h=geom["h"], sw=geom["sw"], sh=geom["sh"],
-             f=geom["font"], s=style))
+             f=geom["font"], s=geom["layout"] if geom["layout"] == "card" else style))
     if not plans:
         sys.exit(tx("wid_none"))
     for method, cmd in plans:
@@ -3368,7 +3611,8 @@ def main():
     p.add_argument("key", choices=("mode", "geo", "engine", "browser", "history_days",
                                    "max_trends", "topics", "lang", "theme", "perf",
                                    "widget_area", "widget_style", "widget_font",
-                                   "widget_interactive"))
+                                   "widget_interactive", "widget_layout", "widget_monitor",
+                                   "widget_pos"))
     p.add_argument("value")
     p = sub.add_parser("exclude", help=tx("ap_exclude"))
     p.add_argument("action", choices=("add", "remove", "list", "clear"))
@@ -3385,6 +3629,9 @@ def main():
     p.add_argument("--area", metavar="WxH", help=tx("ap_o_area"))
     p.add_argument("--style", choices=sorted(WIDGET_STYLES), help=tx("ap_o_style"))
     p.add_argument("--font", metavar="PT", help=tx("ap_o_font"))
+    p.add_argument("--monitor", metavar="N", help=tx("ap_o_monitor"))
+    p.add_argument("--pos", choices=("right", "left", "center"), help=tx("ap_o_pos"))
+    p.add_argument("--layout", choices=("card", "classic"), help=tx("ap_o_layout"))
     p.add_argument("--focusable", action="store_true", help=tx("ap_o_focus"))
     p = sub.add_parser("autostart", help=tx("ap_autostart"))
     p.add_argument("action", nargs="?", choices=("on", "off", "status"), default="status")

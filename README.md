@@ -118,14 +118,14 @@ Astuces : `Tab` complète les commandes, `↑` rappelle les précédentes, `PgUp
 | `search eco on\|off\|auto` | Mode économie |
 | `search consent [status\|yes\|no\|log]` | Consentement d'envoi des mots-clés et journal |
 | `search offline on\|off` | Mode hors-ligne |
-| `search widget [start\|stop\|restart]` | Globe en fond de bureau (`--dry-run` pour voir la commande, `--area`, `--style`, `--font`, `--focusable`) |
+| `search widget [start\|stop\|restart]` | Globe en fond de bureau (`--dry-run` pour voir la commande, `--monitor`, `--pos`, `--area`, `--font`, `--focusable`) |
 | `search autostart on\|off\|status` | Lancer le widget à l'ouverture de session |
 | `search shellhook [fish\|bash\|zsh]` | Ligne à ajouter pour afficher le globe à l'ouverture du terminal |
 | `search set geo US` | Pays des tendances et des actus |
 | `search set engine duckduckgo` | Moteur : `google`, `duckduckgo`, `brave`, `bing`, `qwant` |
 | `search set browser firefox` | Navigateur lu pour le mode perso (`auto` par défaut) |
 | `search set topics 3` / `history_days 30` / `max_trends 6` | Centres d'intérêt, jours d'historique, nombre de tendances |
-| `search set widget_area\|widget_style\|widget_font\|widget_interactive` | Réglages du widget de bureau (voir plus bas) |
+| `search set widget_layout\|widget_monitor\|widget_pos\|widget_area\|widget_font` | Réglages du widget de bureau (voir plus bas) |
 | `search exclude add <mot>` | Masque un sujet (aussi `remove`, `list`, `clear`) |
 | `search history` / `search preview` | Centres d'intérêt détectés / aperçu des tendances perso |
 | `search mousetest` | Diagnostic de la souris (survol et clics) |
@@ -142,10 +142,10 @@ La langue `auto` suit celle de ton système (variable `LANG`), puis le pays choi
 
 ## Mode économie
 
-Pour les terminaux lents, les connexions SSH ou le widget de bureau : 12 images/s au lieu de 30, moitié moins de points, plus d'halo, d'anneaux orbitaux, de balayage radar ni d'animations d'intro.
+Pour les terminaux lents ou les connexions SSH (et pour alléger le widget de bureau, qui garde par défaut tous les détails) : 12 images/s au lieu de 30, moitié moins de points, plus d'halo, d'anneaux orbitaux, de balayage radar ni d'animations d'intro.
 
 - `search eco on` : toujours actif · `search eco off` : jamais · `search eco auto` (défaut)
-- En `auto`, il s'active tout seul en session SSH, pour le widget, ou si l'affichage devient trop lent (un message l'indique).
+- En `auto`, il s'active tout seul en session SSH ou si l'affichage devient trop lent (un message l'indique).
 
 ## Tendances personnalisées
 
@@ -185,16 +185,24 @@ search widget               # lance le widget
 search widget stop          # l'arrête
 ```
 
-Le widget est **grand, sombre et lumineux** pour ne pas se perdre dans le fond d'écran, et il est **interactif** : la barre de recherche, le panneau de paramètres (`/`, `F2` ou clic sur ⚙) et les clics fonctionnent comme dans le terminal. `Échap` ne le ferme pas (utilise `/quit` ou `search widget stop`).
+Par défaut, le widget reprend **l'interface du terminal avec tous ses détails** : globe avec étiquettes en orbite, anneaux et satellites, particules, balayage radar, barre de recherche, ⚙ et chat `/`. Le fond est **transparent**, et la fenêtre fait **~1100×800 px** (57 % de la largeur d'un écran 1920×1080, posée à droite, sur un seul écran) : il n'occupe pas tout l'écran.
+
+- **Interactif** : clique sur le widget puis tape dans la barre de recherche (`Entrée` lance la recherche). `/`, `F2` ou le ⚙ ouvrent les paramètres. `Échap` ne ferme pas le widget (utilise `/quit` ou `search widget stop`).
+- **Un seul écran** : `search widget --dry-run` indique l'écran choisi. Change-le avec `search set widget_monitor 2` (numéro ou nom `xrandr`).
+- Le thème s'applique aussi au widget : `search theme cyan`, `violet`, `matrix`…
+- **Interface « carte »** (optionnelle) : `search set widget_layout card` donne une carte compacte à fond opaque, avec légende cliquable des tendances, champ de recherche et puces de paramètres.
 
 | Réglage | Commande | Valeurs |
 |---|---|---|
-| Taille (pixels, toujours bornée à l'écran) | `search set widget_area 1920x1080` | `auto` (écran moins une marge), ou `LARGEURxHAUTEUR` |
-| Fond | `search set widget_style glass` | `glass` (verre sombre, défaut), `clear` (transparent), `solid` |
-| Taille de police | `search set widget_font 17` | `auto` ou 6 à 72 pt |
-| Barre de recherche et paramètres | `search set widget_interactive on` | `on` (défaut) ou `off` (globe seul) |
+| Interface | `search set widget_layout classic` | `classic` (comme le terminal, défaut) ou `card` (carte compacte) |
+| Écran | `search set widget_monitor 2` | `primary` (défaut), numéro ou nom (`XWAYLAND1`…) |
+| Position | `search set widget_pos right` | `right` (défaut), `left`, `center` |
+| Taille (pixels, toujours bornée à l'écran) | `search set widget_area 1100x800` | `auto` ou `LARGEURxHAUTEUR` |
+| Taille de police | `search set widget_font 14` | `auto` ou 6 à 72 pt |
+| Fond (interface `classic`) | `search set widget_style clear` | `clear` (transparent, défaut), `glass` (verre sombre), `solid` |
+| Barre de recherche et paramètres (`classic`) | `search set widget_interactive on` | `on` (défaut) ou `off` (globe seul) |
 
-Les mêmes options existent pour un lancement ponctuel : `search widget restart --area 1080x1920 --style clear --font 20`. Un écran en portrait (1080×1920) est géré : la police s'adapte pour garder assez de colonnes.
+Les mêmes options existent pour un lancement ponctuel : `search widget restart --monitor 1 --pos left --area 900x700`.
 
 **Un seul widget à la fois** : `search widget` refuse de lancer un doublon (`search widget restart` pour le relancer). Le widget utilise sa **propre config kitty** (`~/.config/search-globe/kitty-widget.conf`), sans toucher à ton `kitty.conf`.
 
@@ -242,7 +250,9 @@ Outils pour les méthodes X11 / XWayland : `sudo pacman -S kitty xdotool wmctrl 
 - **Tendances indisponibles** : le flux Google Trends n'a pas répondu, réessaie plus tard (ou vérifie que le mode hors-ligne est désactivé).
 - **Mode perso sans actus** : c'est le consentement (`/consent`). Pour voir ce qui est détecté : `search history`.
 - **Widget qui ne démarre pas** : `search widget --dry-run`, puis la section « Widget de bureau ». Au démarrage de session, ce que le widget affiche est noté dans `~/.local/state/search-globe/autostart.log` (et la sortie du terminal dans `widget.log`).
-- **Un éditeur (nano) s'ouvre à chaque démarrage** : search-globe ne lance jamais d'éditeur. Pour trouver qui le lance, juste après la connexion : `ps -eo pid,ppid,etime,cmd | grep -E "[n]ano"` (le chemin du fichier ouvert et le processus parent indiquent l'origine), et `ls ~/.config/autostart/`.
+- **Un éditeur (nano) s'ouvre à chaque nouveau terminal** : search-globe n'écrit jamais dans ton `config.fish`. Cherche une ligne `nano ~/.config/fish/config.fish` collée dans `~/.config/fish/config.fish` : fish l'exécute à chaque démarrage. Supprime-la : `sed -i '/^nano ~\/\.config\/fish\/config\.fish$/d' ~/.config/fish/config.fish`. Le widget utilise `/bin/sh` (jamais ton shell) et son lancement automatique est journalisé dans `~/.local/state/search-globe/autostart.log`.
+- **Le widget s'affiche sur le mauvais écran** : `search widget --dry-run` montre l'écran choisi, puis `search set widget_monitor 1` (ou 2) et `search widget restart`.
+- **Tout est en gris** : ton thème est probablement `mono` (`search config | grep theme`), essaie `search theme cyan`.
 
 ## Crédits
 
